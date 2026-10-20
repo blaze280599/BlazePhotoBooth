@@ -167,5 +167,75 @@
       }
     ],
     "textArea": null
+  },
+  {
+    "id": "molang-pineapple",
+    "name": "Molang Pineapple",
+    "file": "molang-pineapple/frame.png",
+    "thumb": "molang-pineapple/thumb.png",
+    "width": 1800,
+    "height": 2695,
+    "slots": [
+      {
+        "x": 126,
+        "y": 711,
+        "w": 756,
+        "h": 904
+      },
+      {
+        "x": 918,
+        "y": 711,
+        "w": 756,
+        "h": 904
+      },
+      {
+        "x": 126,
+        "y": 1647,
+        "w": 756,
+        "h": 912
+      },
+      {
+        "x": 918,
+        "y": 1647,
+        "w": 756,
+        "h": 912
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "molang-pool",
+    "name": "Molang Pool",
+    "file": "molang-pool/frame.png",
+    "thumb": "molang-pool/thumb.png",
+    "width": 1800,
+    "height": 2695,
+    "slots": [
+      {
+        "x": 131,
+        "y": 713,
+        "w": 748,
+        "h": 900
+      },
+      {
+        "x": 918,
+        "y": 713,
+        "w": 751,
+        "h": 900
+      },
+      {
+        "x": 131,
+        "y": 1652,
+        "w": 751,
+        "h": 902
+      },
+      {
+        "x": 918,
+        "y": 1652,
+        "w": 751,
+        "h": 902
+      }
+    ],
+    "textArea": null
   }
 ]

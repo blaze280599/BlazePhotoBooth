@@ -155,5 +155,26 @@
         "mode": "all"
       }
     ]
+  },
+  {
+    "id": "molang-pineapple",
+    "name": "Molang Pineapple",
+    "source": "photo-frames/molang_pineapple.jpg",
+    "crop": [0, 0, 736, 1102],
+    "width": 1800,
+    "window_color": [196, 196, 198],
+    "tolerance": [14, 40]
+  },
+  {
+    "id": "molang-pool",
+    "name": "Molang Pool",
+    "source": "photo-frames/molang_water.jpg",
+    "crop": [0, 0, 736, 1102],
+    "width": 1800,
+    "window_color": [196, 196, 198],
+    "tolerance": [14, 40],
+    "erase": [
+      {"rect": [105, 105, 370, 250], "tolerance": 150, "grow": 5}
+    ]
   }
 ]
