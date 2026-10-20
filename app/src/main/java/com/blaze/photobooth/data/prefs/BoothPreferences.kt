@@ -13,6 +13,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
+import com.blaze.photobooth.model.Crowd
 import com.blaze.photobooth.model.FrameId
 import com.blaze.photobooth.model.Lens
 import com.blaze.photobooth.model.PhotoFilter
@@ -35,6 +36,8 @@ data class BoothSettings(
     val saveMirrored: Boolean = true,
     /** Print also saves the strip to Photos (§4.8). Off by default. */
     val autoSaveStrip: Boolean = false,
+    /** The pose card in Capture (§5.6). On by default; off shows just the countdown. */
+    val poseIdeas: Boolean = true,
 )
 
 /**
@@ -84,10 +87,12 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
         private val LensKey = stringPreferencesKey("setup.lens")
         private val Mirror = booleanPreferencesKey("setup.mirror")
         private val BackFlashKey = stringPreferencesKey("setup.back_flash")
+        private val CrowdKey = stringPreferencesKey("setup.crowd")
         private val Sounds = booleanPreferencesKey("settings.sounds")
         private val HapticsKey = booleanPreferencesKey("settings.haptics")
         private val ScreenFlash = booleanPreferencesKey("settings.screen_flash")
         private val AutoSave = booleanPreferencesKey("settings.auto_save_strip")
+        private val PoseIdeas = booleanPreferencesKey("settings.pose_ideas")
 
         fun readSettings(prefs: Preferences): BoothSettings {
             val d = BoothSettings()
@@ -97,6 +102,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
                 screenFlash = prefs[ScreenFlash] ?: d.screenFlash,
                 saveMirrored = prefs[Mirror] ?: d.saveMirrored,
                 autoSaveStrip = prefs[AutoSave] ?: d.autoSaveStrip,
+                poseIdeas = prefs[PoseIdeas] ?: d.poseIdeas,
             )
         }
 
@@ -106,6 +112,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
             prefs[ScreenFlash] = settings.screenFlash
             prefs[Mirror] = settings.saveMirrored
             prefs[AutoSave] = settings.autoSaveStrip
+            prefs[PoseIdeas] = settings.poseIdeas
         }
 
         /**
@@ -125,6 +132,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
                 lens = Lens.fromId(prefs[LensKey]) ?: defaults.lens,
                 mirror = prefs[Mirror] ?: defaults.mirror,
                 backFlash = BackFlash.fromId(prefs[BackFlashKey]) ?: defaults.backFlash,
+                crowd = Crowd.fromId(prefs[CrowdKey]) ?: defaults.crowd,
             )
         }
 
@@ -137,6 +145,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
             prefs[LensKey] = config.lens.id
             prefs[Mirror] = config.mirror
             prefs[BackFlashKey] = config.backFlash.id
+            prefs[CrowdKey] = config.crowd.id
         }
     }
 }

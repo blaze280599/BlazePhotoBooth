@@ -2,6 +2,8 @@ package com.blaze.photobooth.data.files
 
 import android.util.Log
 import com.blaze.photobooth.model.BoothConfig
+import com.blaze.photobooth.model.Crowd
+import com.blaze.photobooth.model.PosePlanner
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +17,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import kotlin.random.Random
 
 /**
  * The in-progress session (README §8.2, §11.4), shared by Setup → Capture → Pick → Result and mirrored
@@ -44,13 +47,21 @@ class BoothDraftStore(
         state.value
     }
 
-    /** Starts a fresh session, wiping any previous draft and its shots. */
+    /** Starts a fresh session, wiping any previous draft and its shots, with a new pose plan (§5.6) seeded by its time. */
     suspend fun begin(config: BoothConfig, totalShots: Int): BoothDraft = checkNotNull(
         edit {
             dir.deleteRecursively()
-            BoothDraft(createdAt = clock(), config = DraftConfig.from(config), totalShots = totalShots)
+            withPosePlan(BoothDraft(createdAt = clock(), config = DraftConfig.from(config), totalShots = totalShots))
         },
     )
+
+    /**
+     * Tap-to-swap on the pose card (§5.6.1): shot [index] gets another unused pose, saved at once, so a retake or a
+     * process death shows the swapped pose.
+     */
+    suspend fun swapPose(index: Int, random: Random = Random.Default): BoothDraft? = edit { d ->
+        d?.let { it.copy(posePlan = PosePlanner.swap(it.posePlan, index, it.crowd, it.cuts, random)) }
+    }
 
     /**
      * Records a shot whose file is already in place at [shotFile]; a retake of the same index replaces it
@@ -121,7 +132,7 @@ class BoothDraftStore(
             return null
         }
         // A shot whose file didn't make it to disk (process death mid-write) is simply not there.
-        return draft.copy(shots = draft.shots.filter { shotFile(it.index).isFile })
+        return withPosePlan(draft.copy(shots = draft.shots.filter { shotFile(it.index).isFile }))
     }
 
     private fun write(draft: BoothDraft) {
@@ -136,6 +147,17 @@ class BoothDraftStore(
     }
 
     companion object {
+        /**
+         * A draft from before M10 has no pose plan: it gets one from its [BoothDraft.createdAt] (the same plan on
+         * every load, written with the next change). A plan with unknown ids is mended (§5.6). Pure.
+         */
+        fun withPosePlan(draft: BoothDraft): BoothDraft {
+            val plan = PosePlanner.repair(draft.posePlan, draft.crowd, draft.cuts, draft.totalShots, seed = draft.createdAt)
+            return if (plan == draft.posePlan) draft else draft.copy(posePlan = plan)
+        }
+
+        private val BoothDraft.crowd: Crowd get() = config.toConfig().crowd
+
         const val DraftDirName = "_draft"
         const val DraftFileName = "draft.json"
         private const val Tag = "BoothDraftStore"

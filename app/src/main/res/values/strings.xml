@@ -31,6 +31,8 @@
     <string name="settings_save_mirrored_summary">The same switch as Mirror selfies in Setup</string>
     <string name="settings_auto_save">Auto-save strip to Photos</string>
     <string name="settings_auto_save_summary">After printing</string>
+    <string name="settings_pose_ideas">Pose ideas</string>
+    <string name="settings_pose_ideas_summary">A pose to try for every shot</string>
     <string name="settings_manage_frames">Manage frames</string>
     <string name="settings_manage_frames_summary">Add, rename, reorder or hide your frames</string>
     <string name="cd_settings_manage_frames">Open Manage frames</string>
@@ -79,6 +81,11 @@
     <string name="setup_back_flash_hint">Off is gentlest on the eyes</string>
     <string name="setup_back_flash_off">Off</string>
     <string name="setup_back_flash_auto">Auto</string>
+    <string name="setup_crowd">Who\'s in the booth?</string>
+    <string name="setup_crowd_hint">Pose ideas to suit you</string>
+    <string name="setup_crowd_solo">Just me</string>
+    <string name="setup_crowd_duo">Two of us</string>
+    <string name="setup_crowd_squad">Squad (3+)</string>
     <string name="cd_strip_preview">Strip preview: %1$s, %2$s</string>
     <string name="cd_her_frame_named">%1$s, one of her frames</string>
     <plurals name="cd_setup_timer">
@@ -128,17 +135,20 @@
     <string name="cd_shot_tray">Shot tray: %1$d of %2$d</string>
     <string name="cd_viewfinder">Camera viewfinder</string>
     <string name="capture_hint_ready">Tap the big button when you\'re ready ✿</string>
+    <string name="capture_hint_ready_short">Tap the big button ✿</string>
     <string name="capture_hint_paused">Paused · tap ▶ to keep going</string>
+    <string name="capture_hint_paused_short">Paused · tap ▶</string>
     <string name="capture_hint_starting">Waking up the camera…</string>
     <string name="capture_nice">Nice! ✿</string>
     <string name="capture_done">All done! ♡</string>
-    <string-array name="capture_prompts">
-        <item>Say kimchi!</item>
-        <item>Heart hands! 🫶</item>
-        <item>Look surprised!</item>
-        <item>Peace ✌️</item>
-        <item>Cheek poke!</item>
-    </string-array>
+    <string name="pose_first_up">First up</string>
+    <string name="pose_up_next">Up next</string>
+    <string name="pose_next">Next:</string>
+    <string name="cd_pose_first_up">First up: %1$s</string>
+    <string name="cd_pose_up_next">Up next: %1$s</string>
+    <string name="cd_pose_now">Pose: %1$s</string>
+    <string name="cd_pose_next">Next: %1$s</string>
+    <string name="cd_pose_swap">Swap the pose</string>
     <string name="capture_save_failed">Couldn\'t save that shot. Tap ▶ to try again.</string>
     <string name="capture_leave_title">Leave the booth?</string>
     <plurals name="capture_leave_body">
@@ -403,4 +413,69 @@
     <string name="manage_delete_confirm">Delete</string>
     <string name="manage_deleted">%1$s deleted</string>
     <string name="manage_kept_hidden">%1$s is in your strips, so it\'s tucked away instead</string>
+    <!-- Pose ideas (§5.6.2): generated from the README tables; ids use _ for - -->
+    <string name="pose_smile_name">Biggest smile ever</string>
+    <string name="pose_cheek_heart_name">Cheek hearts</string>
+    <string name="pose_cheek_heart_ko" translatable="false">볼하트</string>
+    <string name="pose_finger_heart_name">Finger heart</string>
+    <string name="pose_finger_heart_ko" translatable="false">손하트</string>
+    <string name="pose_chin_v_name">V under the chin</string>
+    <string name="pose_chin_v_ko" translatable="false">턱브이</string>
+    <string name="pose_flower_cup_name">Flower cup, hands under your chin</string>
+    <string name="pose_flower_cup_ko" translatable="false">꽃받침</string>
+    <string name="pose_puffy_cheeks_name">Puffy cheeks!</string>
+    <string name="pose_puffy_cheeks_ko" translatable="false">볼빵빵</string>
+    <string name="pose_cat_paws_name">Cat paws, meow!</string>
+    <string name="pose_cat_paws_ko" translatable="false">냥냥</string>
+    <string name="pose_bunny_ears_name">Bunny ears!</string>
+    <string name="pose_head_heart_name">Big heart over your head</string>
+    <string name="pose_head_heart_ko" translatable="false">머리 위 하트</string>
+    <string name="pose_blow_kiss_name">Blow a kiss!</string>
+    <string name="pose_wink_name">Wink!</string>
+    <string name="pose_surprised_name">Look SO surprised!</string>
+    <string name="pose_thinking_name">Deep in thought…</string>
+    <string name="pose_hand_glasses_name">Hand sunglasses</string>
+    <string name="pose_ok_eye_name">OK sign over one eye</string>
+    <string name="pose_point_camera_name">Point at the camera!</string>
+    <string name="pose_laugh_name">Laugh at the funniest joke</string>
+    <string name="pose_grumpy_name">Cute grumpy face</string>
+    <string name="pose_sleepy_name">Sooo sleepy…</string>
+    <string name="pose_chin_rest_name">Chin on your hands</string>
+    <string name="pose_chin_rest_ko" translatable="false">턱괴기</string>
+    <string name="pose_peek_name">Peek through your fingers</string>
+    <string name="pose_peek_ko" translatable="false">부끄</string>
+    <string name="pose_tongue_name">Tongue out!</string>
+    <string name="pose_idol_fist_name">Idol pose, fist under your chin</string>
+    <string name="pose_hair_flip_name">Hair flip, so fabulous</string>
+    <string name="pose_aegyo_name">Maximum aegyo!</string>
+    <string name="pose_aegyo_ko" translatable="false">애교</string>
+    <string name="pose_shared_heart_name">One heart together, half each</string>
+    <string name="pose_shared_heart_ko" translatable="false">반쪽 하트</string>
+    <string name="pose_cheek_to_cheek_name">Cheek to cheek</string>
+    <string name="pose_back_to_back_name">Back to back, arms crossed</string>
+    <string name="pose_foreheads_name">Foreheads together</string>
+    <string name="pose_cheek_kiss_name">A kiss on the cheek</string>
+    <string name="pose_cheek_kiss_ko" translatable="false">뽀뽀</string>
+    <string name="pose_cheek_pinch_name">Pinch each other\'s cheeks</string>
+    <string name="pose_secret_name">Whisper a secret</string>
+    <string name="pose_back_hug_name">Back hug</string>
+    <string name="pose_back_hug_ko" translatable="false">백허그</string>
+    <string name="pose_bunny_swap_name">Give each other bunny ears</string>
+    <string name="pose_pretend_fight_name">Pretend fight!</string>
+    <string name="pose_point_each_name">Point at each other</string>
+    <string name="pose_mirror_name">Mirror each other</string>
+    <string name="pose_face_squish_name">Squish your faces together</string>
+    <string name="pose_gaze_name">Look at each other, not the camera</string>
+    <string name="pose_squish_in_name">Everyone squish in!</string>
+    <string name="pose_size_order_name">Small, medium, large!</string>
+    <string name="pose_pyramid_name">A pyramid of faces</string>
+    <string name="pose_group_heart_name">One giant group heart</string>
+    <string name="pose_point_one_name">Everyone point at one person</string>
+    <string name="pose_look_up_name">Everyone look up!</string>
+    <string name="pose_same_pose_name">Same pose, different faces</string>
+    <string name="pose_totem_name">Stack your faces like a totem</string>
+    <string name="pose_gasp_name">Everyone gasp!</string>
+    <string name="pose_finger_hearts_name">Finger hearts, everyone!</string>
+    <string name="pose_hug_sandwich_name">Hug sandwich!</string>
+    <string name="pose_wave_name">Wave bye-bye!</string>
 </resources>

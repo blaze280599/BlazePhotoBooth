@@ -3,6 +3,7 @@ package com.blaze.photobooth.data.files
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
+import com.blaze.photobooth.model.Crowd
 import com.blaze.photobooth.model.FrameId
 import com.blaze.photobooth.model.Lens
 import com.blaze.photobooth.model.PhotoFilter
@@ -12,6 +13,8 @@ import kotlinx.serialization.Serializable
  * The in-progress booth session, mirrored to `files/sessions/_draft/draft.json` (README §11.1, §11.4).
  * Shot files are `shot_{index}.jpg` next to it; their paths are derived, never stored (§11.2).
  * [selection], [caption] and [showDate] are Pick's (M4): [selection] maps slot → shot index (null = empty).
+ * [posePlan] (M10, §5.6) is one pose id per shot; drafts from before M10 have none and get one on load
+ * ([BoothDraftStore], from [createdAt], so it's the same plan every time until a swap is saved).
  */
 @Serializable
 data class BoothDraft(
@@ -23,7 +26,14 @@ data class BoothDraft(
     val selection: List<Int?> = emptyList(),
     val caption: String? = null,
     val showDate: Boolean = true,
+    val posePlan: List<String> = emptyList(),
 ) {
+    /** The strip's cut count, as Setup planned it (cuts + bonus = [totalShots]). */
+    val cuts: Int get() = (totalShots - config.bonusShots).coerceIn(1, totalShots.coerceAtLeast(1))
+
+    /** The pose planned for shot [index] (§5.6), or null without one. */
+    fun poseFor(index: Int): String? = posePlan.getOrNull(index)
+
     val taken: Int get() = shots.size
     val complete: Boolean get() = shots.size >= totalShots
 
@@ -56,6 +66,7 @@ data class DraftConfig(
     val lens: String,
     val mirror: Boolean,
     val backFlash: String = BackFlash.Default.id,
+    val crowd: String = Crowd.Default.id,
 ) {
     /** Unknown values fall back to the defaults one field at a time, like the preferences do. */
     fun toConfig(): BoothConfig {
@@ -69,6 +80,7 @@ data class DraftConfig(
             lens = Lens.fromId(lens) ?: d.lens,
             mirror = mirror,
             backFlash = BackFlash.fromId(backFlash) ?: d.backFlash,
+            crowd = Crowd.fromId(crowd) ?: d.crowd,
         )
     }
 
@@ -82,6 +94,7 @@ data class DraftConfig(
             lens = c.lens.id,
             mirror = c.mirror,
             backFlash = c.backFlash.id,
+            crowd = c.crowd.id,
         )
     }
 }

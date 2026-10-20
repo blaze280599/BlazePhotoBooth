@@ -27,6 +27,20 @@ enum class Lens(val id: String) {
     }
 }
 
+/** "Who's in the booth?" (README §5.6.1): picks the pose pool. Chosen by hand, never detected. */
+enum class Crowd(val id: String) {
+    Solo("solo"),
+    Duo("duo"),
+    Squad("squad"),
+    ;
+
+    companion object {
+        val Default = Solo
+
+        fun fromId(id: String?): Crowd? = entries.firstOrNull { it.id == id }
+    }
+}
+
 /**
  * Everything chosen on Setup (README §4.2, §5.4). [layout] is kept even while an image frame is
  * selected (which sets its own cut count), so switching back to a theme restores it.
@@ -40,6 +54,8 @@ data class BoothConfig(
     val lens: Lens = Lens.Front,
     val mirror: Boolean = true,
     val backFlash: BackFlash = BackFlash.Default,
+    /** Who's in the booth (§5.6): which poses the pose card suggests. */
+    val crowd: Crowd = Crowd.Default,
 ) {
     companion object {
         val TimerChoices = listOf(3, 5, 10)
