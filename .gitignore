@@ -17,3 +17,6 @@
 /.vscode/
 /.venv/
 __pycache__/
+
+# The finished APK (README §15.5): built and copied here, never committed
+/release/

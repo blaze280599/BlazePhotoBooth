@@ -5,8 +5,16 @@ A Korean self-photo-studio experience (think 인생네컷 *Life4Cuts*, Photoism,
 > **Built by an AI agent.** Claude (Claude Code) writes this app autonomously. This README is the **single source of truth** for what to build, how it looks and feels, how it's put together, and in what order. When a decision changes, update this file first (see the [Decision log](#18-decision-log)) and then change the code.
 
 **Target device:** Google **Pixel 9** (`tokay`, verified over adb), running **Android 17 (API 37.1)**, with a 6.3" 1080×2424 OLED at 60–120 Hz, 420 dpi density, 12 GB RAM, a 10.5 MP front and 50 MP rear camera. Portrait only.
-**Status:** M0 ✅ M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅ M6 ✅ M7 ✅ M8 ✅ (2026-10-20). The whole booth runs on the Pixel 9: **Setup** (her 5 frames plus 9 themes, 6 filters), **Capture** (cropped, filtered viewfinder, bouncy countdown, flash, sounds, haptics; the back camera's LED flash is Off unless she picks Auto), **Pick** (choose cuts, retake one, frame, filter, caption, date) and **Print → Result** (the strip prints out with confetti and is saved in the album: Room plus `files/sessions/{id}/`). The **Album** (month headers, ♡, filters, multi-select), **Detail** (shared-element hero, Strip | Photos) and **Edit** (re-pick, re-frame, re-render) work, with delete + Undo; Home shows the album badge and the latest strip. **Save to Photos** (strip, one photo, all photos, several strips at once) and **Share** work from Result, Detail and the album, and the Settings switches are real (auto-save after printing, storage used). **Her frames ♡** (M7): she can import her own frame designs from the gallery (windows found automatically, or placed in the slot editor), name them, shoot and print with them, and rename, reorder, hide or delete them in *Manage frames*. **Polish** (M8): every animation in §7 audited (the Setup preview now tilts with the phone), reduce motion honoured everywhere, contrast fixed and tested in light and dark, TalkBack labels and 48 dp targets checked on every screen, and every screen usable at 200% font. Next: M9. See [Milestones](#16-milestones).
+**Status:** v1.0.0 ✅ (M0–M9, 2026-10-20). Finished, hardened and released as a sideloaded APK (`release/BlazeBooth-1.0.0.apk`, §15.5). See [What's in v1.0](#whats-in-v10) and [Milestones](#16-milestones).
 **Her frames:** ✅ 5 frames processed, AI-upscaled, text removed, bundled, and **approved by her** (2026-10-20) (§5.5.6).
+
+### What's in v1.0
+- **The booth:** Setup (her 5 frames first, then 9 themes, 6 filters, 5 layouts, timer, bonus shots, front/back camera, flash) → Capture (a cropped, filtered viewfinder, a bouncy countdown, flash, sounds, haptics) → Pick (choose the cuts, retake one, change the frame or filter, caption, date) → Print → Result (the strip prints out with confetti and is already in the album).
+- **The album, forever:** every strip and every original shot are kept on the phone, with month headers, ♡, filters, multi-select, Detail (Strip | Photos), Edit (re-pick, re-frame, re-filter) and Delete with Undo.
+- **Save and share:** the strip, one photo or all photos go to Photos (`Pictures/Blaze Booth`) or the share sheet; auto-save after printing is optional.
+- **Her frames ♡:** 5 bundled frames, and she can import her own from the gallery (windows found automatically or placed by hand), then rename, reorder, hide or delete them.
+- **Polish:** springy motion everywhere, reduce motion, light and dark themes with checked contrast, TalkBack, and layouts that work at 200% font.
+- **Hardening (M9):** every edge case in §13 checked and tested, safe when Android closes the app in the background, StrictMode-clean, smoother first frames, an R8-shrunk 13 MB release build with a baseline profile, and an install guide (§15.5).
 
 ---
 
@@ -535,6 +543,7 @@ Versions are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml) 
 - **Unidirectional data flow:** each ViewModel exposes one immutable `UiState` as a `StateFlow`, plus one-shot `effects` (snackbars, navigation) via a `Channel`.
 - **`BoothDraftStore`** (singleton in `AppContainer`) holds the in-progress session (config, shot files, slot selection, caption) shared by Setup → Capture → Pick → Result. It's mirrored to disk (§11.4), so a process death mid-session is recoverable.
 - **Threading:** bitmap decode, crop, render and encode on `Dispatchers.Default`; file and DB work on `Dispatchers.IO`. The main thread never touches a full-size bitmap.
+- *Since M9:* debug builds run **StrictMode** from the first line of startup (`debug/StrictModeSetup`, a content provider with the highest `initOrder`; it logs disk/network on the main thread, slow calls and leaked closeables under the tag `StrictMode`). A walk through every screen found one offender (Print's "was the strip written?" check, now on `Dispatchers.IO`). Bitmaps that are about to be shown start their GPU upload at once (`BitmapOps.forScreen`, i.e. `prepareToDraw`), so a screen's first frame doesn't upload them all. `BoothApp.onTrimMemory` empties the frame-artwork cache when Android is short of memory (Coil trims its own). No `!!` anywhere in `src/main`; Print, Edit's Save, exports, imports and the startup checks catch failures and report them (snackbar or log) instead of crashing.
 
 ### 8.3 Navigation (Navigation 3)
 ```kotlin
@@ -690,6 +699,7 @@ File paths are **derived** from `id` and `shot_index` and never stored, which av
 
 ### 11.3 "Forever"
 App-private storage survives restarts and app updates. It's removed only on uninstall or "Clear storage". `data_extraction_rules.xml` includes sessions, DB and DataStore in **device-to-device transfer**, so a new phone keeps the album. They're excluded from cloud backup because photos would exceed the 25 MB quota. Users who want a copy outside the app use *Save to Photos*. Settings shows storage used.
+*Since M9* (`data_extraction_rules.xml`, checked by `BackupRulesTest`): device-to-device transfer also takes **`frames/`** (her imported frames; before, their rows moved without their pictures). The cloud backup now leaves out the **database** and `frames/` too, so it holds only her settings and Setup choices: restoring the album rows without their photos would have shown broken strips.
 
 ### 11.4 Draft recovery
 `_draft/draft.json` is rewritten after every shot and selection change. On launch, if a draft exists with ≥ 1 shot, Home offers **Continue / Discard**.
@@ -731,36 +741,42 @@ No storage, location, microphone or network permissions. The app works **fully o
 
 ## 13. Edge cases & error handling
 
-| Situation | Behaviour |
-|---|---|
-| Camera fails to bind or is in use by another app | Friendly error card with Retry; logged. |
-| App backgrounded mid-countdown | Sequence auto-pauses; resumes with a fresh countdown on return. |
-| Process death mid-session | Draft recovery on next launch (§11.4). |
-| Low storage (< 50 MB free) | Warn before starting a session; on write failure, show a snackbar and keep the draft. |
-| Device rotated | Activity is portrait-locked; capture uses `targetRotation` from the display so photos are upright. |
-| Back camera chosen | No mirroring; screen flash disabled. The LED flash follows the **Flash** choice (Off / Auto, default **Off**): a Setup Options row and a toggle in Capture's top bar. *M3 used normal flash on auto, which fired at close range and hurt the human's eyes in testing.* |
-| Print with empty slots | Button shakes, `REJECT` haptic, empty slots pulse. |
-| Export fails (MediaStore) | Snackbar with Retry; the pending row is deleted. Retry carries on from the file that failed. A full disk says so (*"Your phone is full…"*). |
-| A file to save or share is missing | Skipped; the snackbar says how many were missing (*"2 photos saved to Photos · 1 was missing"*), or *"Oh no, that file is missing from your album."* with no Retry if nothing could be saved. |
-| A strip's image frame is gone, then she saves it | The saved `strip.jpg` is copied as it is; the frame isn't needed. |
-| Saving many files at once | One after another, never in parallel; the button counts (*"Saving 3 of 8…"*), and every other save/share button waits. |
-| Double tap on Save | Ignored while a save runs; a saved button stays ✓ on that screen. |
-| Very long caption or emoji | Max 24 chars, single line, auto-shrinks to fit the footer width. |
-| Font scale 200% | Layouts scroll; the strip preview shrinks before controls overflow. *M8:* checked screen by screen at 200% (§6.7). |
-| Dark mode | App UI switches; **frame themes don't** (a strip looks the same everywhere). |
-| Imported frame has no detectable windows | Go straight to the slot editor with one default window in the middle. |
-| Imported frame is huge (e.g. 8000 px) | Downscale on import to a long edge ≤ 7200 px before saving. |
-| Imported frame windows have very different shapes | Each shot's viewfinder uses its own slot's aspect ratio; the counter pill shows the slot number. |
-| A strip's `thumb.jpg` is missing | The album and Home show `strip.jpg` instead; the next start makes a new thumbnail from it (§11.1). |
-| A saved strip's image frame no longer exists | Album and Detail still show the saved strip. Edit starts on the default theme with a layout that fits the shots. |
-| Rapid ♡ taps | Each tap shows at once; the writes land in tap order and the heart never flickers back to an older value. |
-| Delete, then the app dies before Undo | The strip stays hidden and is purged (row and folder) on the next start once it's > 10 s old. |
-| Imported frame is over 12 MP | Also scaled down on import (to fit the app's heap): a 2400 × 9000 strip comes in at 1788 × 6708. |
-| The picked file isn't an image the phone can decode | *"Couldn't open that picture"* with Pick another / Cancel. |
-| Import dies half-way (crash, process death) | Nothing is saved before Save; a half-written `frames/` folder has no row and is removed at the next start. |
-| She deletes a frame her strips use | It's hidden instead (`hidden = 2`); Edit still re-frames with it; its files go at the first start after no strip (or draft) uses it. |
-| The frame Setup remembers is hidden or deleted | Setup opens on the first frame in the carousel; the rest of her choices stay. |
-| A draft's frame is hidden mid-session | Capture and Pick still find it by id; the strip prints with it. |
+*M9 status:* every row was checked against the code and is covered by a test (JVM, Robolectric or Roborazzi) or, where only the phone can show it, by an on-device check.
+
+| Situation | Behaviour | Verified (M9) |
+|---|---|---|
+| Camera fails to bind or is in use by another app | Friendly error card with Retry; logged. | ✅ `CameraStatusTest` (in use / disabled / broken / recoverable), `capture_error_dark.png` |
+| App backgrounded mid-countdown | Sequence auto-pauses; resumes with a fresh countdown on return. | ✅ `CaptureSequencerTest.backgroundPausesAndForegroundResumesWithAFreshCountdown` |
+| Process death mid-session | Draft recovery on next launch (§11.4). | ✅ `BoothDraftStoreTest`; phone: `am kill` with a draft in Pick (§15.6) |
+| Android closes the app in the background on any screen (*M9*) | It reopens on the same screen: Setup, Pick (her picks kept), Result, Album (scroll kept), Detail (tab and photo kept), Manage frames. Edit reopens on the saved look (unsaved changes are dropped; the saved strip is untouched). Result's ✓ on the Save buttons resets. | ✅ phone, debug and release builds (§15.6); `AppConfigTest` (the back stack survives recreation) |
+| Add frame closed by Android after she picked a picture (*M9*) | The Photo Picker opens again (the picture was only in memory, and nothing is saved before Save). Before M9 she was left on an empty screen. | ✅ phone (§15.6); fixed in `AddFrameRoute` |
+| Low storage (< 50 MB free) | Warn before starting a session; on write failure, show a snackbar and keep the draft. | ✅ `LowStorageTest` (*M9*: free space is now read off the main thread), `CaptureSequencerTest.aFailedShotPausesOnTheSameShot` |
+| Low memory (*M9*) | Cached frame artwork is dropped (all of it in the background, half on screen) and decoded again when needed. | ✅ `FrameMemoryTest`; phone: `am send-trim-memory` |
+| Device rotated | Activity is portrait-locked; capture uses `targetRotation` from the display so photos are upright. | ✅ `AppConfigTest` (portrait lock), `ShotGeometryTest`, `ShotProcessorTest` |
+| Back camera chosen | No mirroring; screen flash disabled. The LED flash follows the **Flash** choice (Off / Auto, default **Off**): a Setup Options row and a toggle in Capture's top bar. *M3 used normal flash on auto, which fired at close range and hurt the human's eyes in testing.* | ✅ `BackFlashTest`, `ShotGeometryTest.onlyFrontCameraSelfiesAreMirrored` |
+| Print with empty slots | Button shakes, `REJECT` haptic, empty slots pulse. | ✅ `pick_print_disabled_dark.png`, `SlotSelectionTest` |
+| Export fails (MediaStore) | Snackbar with Retry; the pending row is deleted. Retry carries on from the file that failed. A full disk says so (*"Your phone is full…"*). | ✅ `PhotoExporterTest` (a fake `MediaGallery`: failed write, full disk), `ExportTasksTest.retryCarriesOnFromTheFileThatFailed` |
+| A file to save or share is missing | Skipped; the snackbar says how many were missing (*"2 photos saved to Photos · 1 was missing"*), or *"Oh no, that file is missing from your album."* with no Retry if nothing could be saved. | ✅ `PhotoExporterTest.missingFilesAreSkippedAndCounted`, `ExportTasksTest.missingFilesGetAFriendlyErrorWithoutRetry` |
+| A strip's image frame is gone, then she saves it | The saved `strip.jpg` is copied as it is; the frame isn't needed. | ✅ `PhotoExporterTest.aStripWhoseFrameIsGoneStillSaves` |
+| Saving many files at once | One after another, never in parallel; the button counts (*"Saving 3 of 8…"*), and every other save/share button waits. | ✅ `ExportTasksTest.aSecondTapWhileSavingIsIgnoredAndProgressShows`, `album_select_save_dark.png` |
+| Double tap on Save | Ignored while a save runs; a saved button stays ✓ on that screen. | ✅ `ExportTasksTest` |
+| Very long caption or emoji | Max 24 chars, single line, auto-shrinks to fit the footer width. *M9:* the cut at 24 never splits an emoji (it used to leave half of one, a broken box). | ✅ `CaptionTest`, `CaptionFitTest` (24 × "W" stays inside the text column on every layout) |
+| Font scale 200% | Layouts scroll; the strip preview shrinks before controls overflow. *M8:* checked screen by screen at 200% (§6.7). *M9:* Setup's title no longer touches the strip. | ✅ `big_font_*.png` |
+| Dark mode | App UI switches; **frame themes don't** (a strip looks the same everywhere). | ✅ `FrameDarkModeTest`; `AppConfigTest` (switching while the app is open keeps her screen) |
+| Imported frame has no detectable windows | Go straight to the slot editor with one default window in the middle. | ✅ `FrameImportTest.noWindowsOpensTheEditorWithOneDefaultWindow` |
+| Imported frame is huge (e.g. 8000 px) | Downscale on import to a long edge ≤ 7200 px before saving. | ✅ `FrameImporterTest.openDecodesThePickedFileAndShrinksHugeOnes` |
+| Imported frame windows have very different shapes | Each shot's viewfinder uses its own slot's aspect ratio; the counter pill shows the slot number. | ✅ `CapturePlanTest.differentlyShapedWindowsGetTheirOwnAspect` |
+| A strip's `thumb.jpg` is missing | The album and Home show `strip.jpg` instead; the next start makes a new thumbnail from it (§11.1). | ✅ `SessionAlbumTest.aLostThumbnailIsMadeAgainAndTheAlbumShowsTheStripMeanwhile`, `HomeSourceTest` |
+| A saved strip's image frame no longer exists | Album and Detail still show the saved strip. Edit starts on the default theme with a layout that fits the shots. | ✅ `EditSaveTest.aGoneFrameFallsBackToADefaultThemeThatFits` |
+| Rapid ♡ taps | Each tap shows at once; the writes land in tap order and the heart never flickers back to an older value. | ✅ `FavoriteTogglesTest` |
+| Delete, then the app dies before Undo | The strip stays hidden and is purged (row and folder) on the next start once it's > 10 s old. | ✅ `SessionAlbumTest.thePurgeRemovesOldSoftDeletesRowsAndFoldersButNotRecentOnes` |
+| Imported frame is over 12 MP | Also scaled down on import (to fit the app's heap): a 2400 × 9000 strip comes in at 1788 × 6708. | ✅ `FrameImportTest.hugePicturesAreScaledDownOnImport` |
+| The picked file isn't an image the phone can decode | *"Couldn't open that picture"* with Pick another / Cancel. | ✅ `FrameImporterTest.aFileThatIsntAPictureFailsGently` (*M9*) |
+| Import dies half-way (crash, process death) | Nothing is saved before Save; a half-written `frames/` folder has no row and is removed at the next start. | ✅ `CustomFrameStoreTest.aFailedSaveLeavesNothingBehind`, `startupCleanupRemovesDeletedFramesOnceNothingUsesThem` |
+| She deletes a frame her strips use | It's hidden instead (`hidden = 2`); Edit still re-frames with it; its files go at the first start after no strip (or draft) uses it. | ✅ `CustomFrameStoreTest.deletingAFrameThatStripsUseOnlyHidesIt` |
+| The frame Setup remembers is hidden or deleted | Setup opens on the first frame in the carousel; the rest of her choices stay. | ✅ `SetupFallbackTest` |
+| A draft's frame is hidden mid-session | Capture and Pick still find it by id; the strip prints with it. | ✅ `FrameRepositoryTest.hiddenFramesCanStillBeFound` |
+| Moving to a new phone (*M9*) | Device-to-device transfer brings the album, her imported frames and her settings; the cloud backup only her settings (§11.3). | ✅ `BackupRulesTest` |
 
 ---
 
@@ -773,12 +789,14 @@ BlazePhotoBooth/
 ├── gradle/libs.versions.toml     ← all versions
 ├── photo-frames/                 ← INBOX: raw frame images (any format); _previews/ = pipeline review output
 ├── tools/frames/                 ← frame pipeline: process_frames.py, frames.config.json, requirements.txt (§5.5.5)
+├── release/                      ← the finished APK (BlazeBooth-1.0.0.apk, §15.5); git-ignored
 └── app/
     ├── build.gradle.kts · proguard-rules.pro
     ├── schemas/                  ← exported Room schemas
     └── src/
         ├── main/
         │   ├── AndroidManifest.xml
+        │   ├── baseline-prof.txt       ← baseline profile for the app's code (§15.5)
         │   ├── assets/frames/          ← bundled image frames + frames.json
         │   ├── res/ (font/, values/, values-night/, xml/, drawable/, mipmap-anydpi/)
         │   └── java/com/blaze/photobooth/
@@ -810,7 +828,7 @@ BlazePhotoBooth/
         │               │    pick/ also PickSource.kt, album/ also AlbumModel.kt and FavoriteToggles.kt;
         │               │    export/ = ExportTasks + ExportUi, shared by Result, Detail and Album;
         │               │    frames/ = AddFrame* + SlotEditor (import flow) and ManageFrames*)
-        ├── debug/                      ← debug builds only: SampleSeedProvider (pastel sample strips), ReduceMotionTrigger (§15.3)
+        ├── debug/                      ← debug builds only: SampleSeedProvider (pastel sample strips), ReduceMotionTrigger (§15.3), StrictModeSetup (§8.2)
         └── test/
             ├── java/com/blaze/photobooth/  ← JVM unit tests + Roborazzi screenshot tests (screenshots/)
             └── screenshots/               ← recorded Roborazzi PNGs (§15.4)
@@ -831,7 +849,7 @@ BlazePhotoBooth/
 export JAVA_HOME="/c/Program Files/Microsoft/jdk-21.0.12.101-hotspot"
 ./gradlew assembleDebug            # → app/build/outputs/apk/debug/app-debug.apk
 ./gradlew testDebugUnitTest lintDebug
-./gradlew assembleRelease          # R8-minified, debug-signed for sideloading
+./gradlew assembleRelease          # R8-minified, debug-signed for sideloading → app/build/outputs/apk/release/app-release.apk
 ```
 
 ### 15.3 Install on the Pixel 9
@@ -856,7 +874,7 @@ In PowerShell, call adb as `& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.
 
 **What the agent does with the phone:** `installDebug`, launching the app (`am start`), screenshots (`exec-out screencap -p`), screen recordings, `logcat` for crashes, UI hierarchy dumps (`uiautomator dump`) and taps/swipes (`input`) to walk through flows. It never changes device settings and never touches other apps.
 
-**Sample strips (debug builds only, since M5):** to test the album without photos of people, write a count into `files/debug_seed` and start the app; `SampleSeedProvider` (in `app/src/debug/`) renders that many pastel sample strips (numbered gradients, every layout, theme and her frames, spread over the last months, caption *"sample ✿"*) and deletes the trigger file. Writing `clear` instead of a count soft-deletes every sample strip (only those captioned *"sample ✿"*), and the next start purges them. Release builds don't contain it.
+**Sample strips (debug builds only, since M5):** to test the album without photos of people, write a count into `files/debug_seed` and start the app; `SampleSeedProvider` (in `app/src/debug/`) renders that many pastel sample strips (numbered gradients, every layout, theme and her frames, spread over the last months, caption *"sample ✿"*) and deletes the trigger file. Writing `clear` instead of a count soft-deletes every sample strip (only those captioned *"sample ✿"*), and the next start purges them. *Since M9:* `delete <id> <id> …` soft-deletes exactly the listed strips (used for the gift clean-up, so a real strip can't be hit by accident). Release builds don't contain it.
 **Reduce motion without touching the phone's settings (debug builds, since M8):** write `on` (or `off`) into `files/debug_reduce_motion` and restart the app; delete the file to follow the system again.
 ```bash
 echo on | adb exec-in run-as com.blaze.photobooth sh -c 'cat > files/debug_reduce_motion'
@@ -875,6 +893,85 @@ Composables render to PNG on the JVM (Robolectric native graphics at Pixel 9 siz
 ```
 Plain `testDebugUnitTest` runs them too, without comparing. Since M2, `StripRenderScreenshotTest` also renders the strip renderer straight into bitmaps: `her_frame_<id>.png` (each of her frames with numbered sample photos, to compare with `photo-frames/_previews/<id>_photos.jpg`), `her_frames_all.png`, `her_frames_preview.png`, `strip_layouts_<theme>.png` (every layout), `strip_themes_preview.png` (all 9 themes as Setup shows them) and `strip_filters.png`; Setup is captured on every tab (`setup_*.png`, light and dark). Sample photos are generated pastel gradients with numbers, never real people. Since M3, Capture is captured with a fake gradient viewfinder (`CaptureScreenshotTest.kt`): `capture_idle_dark`, `capture_countdown_dark`, `capture_last_second_light`, `capture_flash_dark` (60 ms into the flash), `capture_tray_lilac_dark` (her 3-window frame, tray part-filled), `capture_permission_dark`, `capture_permission_blocked_light` and `capture_error_dark`. Each state has its own one-test class because of the `graphicsLayer` gotcha below. Since M4: `capture_back_flash_dark`, `capture_retake_light`, `setup_options_back_dark`; Pick (`PickScreenshotTest.kt`, her Lilac Pals and Strawberry Milk with generated photos): `pick_empty_lilac_dark`, `pick_partial_theme_light`, `pick_full_lilac_dark`, `pick_full_theme_dark`, `pick_print_disabled_dark` (130 ms into the shake), `pick_text_theme_light`, `pick_text_her_frame_dark`, `pick_frame_tab_dark`, `pick_peek_dark`; Result (`ResultScreenshotTest.kt`): `result_mid_print_dark` (950 ms), `result_confetti_dark` (2.5 s) and `result_settled_light` (reduce motion). Since M5 (`AlbumScreenshotTest.kt`, generated pastel strips; Coil's `AsyncImagePreviewHandler` serves the bitmaps by path, under `LocalInspectionMode`): `album_empty_light`, `album_filled_light`, `album_filled_dark`, `album_favorites_dark`, `album_select_dark`, `detail_strip_dark`, `detail_photos_dark`, `pick_edit_dark` and `home_peek_dark`. Since M6 (`ExportScreenshotTest.kt`, snackbar words from the real `ExportCopy`): `result_actions_dark`, `result_saved_dark` (✓ + snackbar), `result_auto_saved_light` (the auto-save note), `result_error_light` (Retry), `detail_actions_dark`, `detail_saved_dark`, `detail_saving_dark` ("2 of 3"), `detail_missing_light`, `album_select_save_dark` ("Saving 2 of 2…"), `album_select_saved_dark`; `settings_sheet_dark` now shows real values. Detail's Share menu is a popup, which Roborazzi's root capture doesn't include, so it's checked on the phone. Since M7 (`FramesScreenshotTest.kt`, code-drawn frames from `render/SyntheticFrames` in the test sources, detection run for real): `add_frame_finding_dark` (700 ms into the sweep), `add_frame_confirm_dark` (a her-style 4-window strip), `add_frame_naming_small_light` (name field + the small-picture warning), `add_frame_editor_dark` (window 2 selected, centre guide), `add_frame_editor_none_light` (nothing found: one default window), `add_frame_saved_dark` (the heart pop), `manage_frames_light`, `manage_frames_dark` and `setup_frame_imported_dark`; `settings_sheet_dark` shows Manage frames with its ›. Rename and Delete are dialogs (popups), checked on the phone. Since M8 (`BigFontScreenshotTest.kt`, `SchemeScreenshotTest.kt`): `big_font_*` (every main screen at 200% font, set through `LocalDensity`, never on the phone), the missing light/dark twins (`settings_sheet_light`, `detail_photos_light`, `home_filled_dark`) and the reduce-motion states (`setup_frame_reduce_motion_dark`, `capture_last_second_reduce_motion_light`, `result_reduce_motion_dark`). `placeholder_capture_dark` is gone with the placeholder screen. Semantics tests (`ui/AccessibilityTest`, `ui/ReduceMotionScreensTest`) read the semantics tree instead of pixels. The Compose test clock pauses infinite animations, so each PNG is the first frame. Gotchas: unit tests need `--add-exports/--add-opens java.base/jdk.internal.access` (set in `app/build.gradle.kts`). A `graphicsLayer` (scale or rotation) renders **blank if another Compose test already ran in the same JVM**, so each test class gets its own JVM (`forkEvery = 1`) and such a sample must be its class's first test (or have a class of its own).
 
+
+### 15.5 Release build, signing and installing on her phone (M9)
+
+**What the release build is:** `./gradlew assembleRelease` makes `app/build/outputs/apk/release/app-release.apk` (≈ 13 MB; the debug APK is ≈ 84 MB). R8 shrinks and obfuscates the code (`isMinifyEnabled`) and drops unused resources (`isShrinkResources`). `versionName` **1.0.0**, `versionCode` **1**. The finished v1.0.0 APK is copied to **`release/BlazeBooth-1.0.0.apk`** in the repo root; `/release/` is in `.gitignore`, so APKs are never committed.
+
+**Keep rules:** none were needed beyond `proguard-rules.pro`'s rule for `@Serializable` classes. The libraries ship their own rules (kotlinx.serialization, Room's generated `_Impl`, CameraX, Coil, DataStore, graphics-shapes), and the release build was checked on the Pixel 9: Nav 3 keys restored after `am kill`, `draft.json` read and written, Room, DataStore, Coil, the camera binding (front and back), Print, Edit's re-render, Save to Photos and Share all worked, and logcat showed no `ClassNotFoundException`, `SerializationException` or `NoSuchMethodError`.
+
+**Baseline profile:** `app/src/main/baseline-prof.txt` lists the whole app (`HSPLcom/blaze/photobooth/**;->**(**)**`, the app is small). AGP expands it, R8 rewrites it to the obfuscated names, and it ships in the APK next to the libraries' own profiles (Compose and friends). `ProfileInstaller` hands it to Android on the first launch; Android then compiles the app ahead of time at its next idle maintenance (overnight while charging), or at once with `adb shell cmd package compile -m speed-profile -f com.blaze.photobooth`. A Macrobenchmark-generated profile (a `:baselineprofile` module) was not added; see the decision log. The manifest's `<profileable android:shell="true"/>` lets `adb` trace and measure the release build (it grants nothing to other apps).
+
+**Signing (important):** the release build is signed with **this PC's Android debug key**, `%USERPROFILE%\.android\debug.keystore` (created by the Android tools; never committed). Android only installs an update over an app signed with the **same key**, so:
+- every future update of Blaze Booth must be built **on this PC** (or a PC holding a copy of that file);
+- **back up `debug.keystore`** (e.g. to a USB stick or a private cloud folder). If it's lost, an update can only be installed by uninstalling first, and **uninstalling deletes her whole album** (app-private storage, §11.3);
+- the debug and release builds share the key, so a release can be installed over a debug build (and back) and keeps all data.
+- To check a backup is the right file: `keytool -list -v -keystore debug.keystore -storepass android` must show SHA-256 `7D:99:17:A7:22:7D:00:53:66:B4:31:DB:AB:35:BE:D7:3D:11:FA:49:9B:D5:12:AE:7E:80:C4:4C:F1:95:67:CB` (the same as `apksigner verify --print-certs` on the APK). The key is valid until 2056.
+
+**Install on her phone:** (her phone needs Android 12 or newer.)
+1. *With a USB cable or Wireless debugging (easiest for updates):* turn on Developer options and USB/Wireless debugging on her phone (§15.3), connect, then run:
+   ```bash
+   adb install -r release/BlazeBooth-1.0.0.apk
+   ```
+   Open Blaze Booth once, wait ~10 seconds, then (optional, makes the first day as smooth as later ones):
+   ```bash
+   adb shell cmd package compile -m speed-profile -f com.blaze.photobooth
+   ```
+   Developer options can be switched off again afterwards.
+2. *Without a computer connection:* copy `BlazeBooth-1.0.0.apk` to her phone (USB file transfer, Quick Share, or a private cloud folder), open it from the **Files** app, and when Android asks, allow **"Install unknown apps"** for Files (*Settings → Apps → Special app access → Install unknown apps → Files*). Tap **Install**. Google Play Protect may warn about an app from an unknown developer: choose *More details → Install anyway*. Turn the permission off again afterwards if she likes.
+3. On first launch Android asks for the **camera** when she first enters the booth (§12). Nothing else is needed: no account, no internet.
+
+**Updating later:** build a new APK on this PC (bump `versionCode`/`versionName`) and install it the same way **over** the old one (`adb install -r` or tapping the new APK): the album stays. **Never uninstall** to update, and never "Clear storage" in the app's settings: both delete every strip. *Save to Photos* (or Settings → Storage used) is the way to keep copies outside the app.
+
+### 15.6 M9 checks on the Pixel 9
+
+**Process death** (`adb shell am kill com.blaze.photobooth` with the app in the background, then reopening it; debug and release builds):
+
+| Screen | After the kill |
+|---|---|
+| Setup (Frame tab) | Same screen and tab, her choices kept |
+| Pick with a draft (a cut swapped for a bonus shot) | Same screen, the swap kept (it's in `draft.json`) |
+| Result | Same strip (already in the album); the Save buttons' ✓ resets |
+| Album (scrolled) | Same place in the grid |
+| Detail (Photos tab, cut 2) | Same tab and photo |
+| Edit (filter changed, not saved) | Edit on the saved look; the unsaved change is gone, nothing else |
+| Manage frames | Same screen |
+| Add frame (Confirm, after picking) | **Fixed in M9:** the Photo Picker opens again (was an empty "Choose your frame picture" screen) |
+| Add frame with the Photo Picker open | Android doesn't kill an app whose picker is in front (`am kill` leaves it), so there is nothing to restore |
+
+No crashes (crash buffer empty). StrictMode (debug): one main-thread disk read found and fixed (Print), none elsewhere.
+
+**Performance** (`dumpsys gfxinfo`, 120 Hz, so a frame is "janky" past ~8 ms; p99 = the slowest 1% of frames). M8 measured the **debug** build, which runs much slower than the release. M9 measured the release build compiled with its profile, tapping by coordinates (a `uiautomator dump` right before a tap turns on accessibility and itself adds slow frames, which inflated some earlier numbers):
+
+| Measure | M8 (debug build) | M9 release, before the fixes | M9 release, after |
+|---|---|---|---|
+| Cold start (`am start -W`, median of 5) | first frame p99 129 ms | 158 ms | **≈ 153 ms** (148–179) |
+| Album scroll, 8 flings | 1.30% janky, p99 19 ms | 0.12%, p99 13 ms | 0.12–0.24%, p99 11–12 ms |
+| Album → Detail (hero), first open | 2 of 65 janky, p99 57 ms | 0–1 of 63, p99 13–21 ms | 1 of 62, p99 21–23 ms |
+| Edit open, first after a start | 4 of 159 janky, p99 42 ms | 2 of 62, p99 30–40 ms | **1 of 62, p99 17–21 ms** (earlier runs up to 29) |
+| Edit's Filter and Frame tabs | — | p99 10–31 ms | 0 janky, p99 9–18 ms |
+| Detail → Album (back) | — | 1 of 63, p99 16–21 ms | 1 of 63, p99 18–20 ms |
+
+**Gift clean-up (2026-10-20, as the human approved):** the 25 test strips were deleted by id (debug `delete` trigger, then purged), keeping only the human's real Lilac Pals strip (its 7 files untouched); the 13 test exports in `Pictures/Blaze Booth` (and the then-empty folder) and the 2 M7 test frames in `Download` were removed; Setup's remembered choices were reset to the defaults; the agent's temp files were removed. The Pixel 9 now runs the release v1.0.0 build. The app will live on **her own phone** (install guide in §15.5).
+
+**Final release v1.0.0, per screen** (compiled with its profile, 2026-10-20):
+
+| Screen | Janky | p50 | p99 |
+|---|---|---|---|
+| Home idle 6 s (particles, blob) | 0.22% (2 of 895) | 8 ms | 18 ms |
+| Setup open + all four tabs | 0.66% (5 of 761) | 6 ms | 26 ms |
+| Settings sheet | 0.57% | 8 ms | 15 ms |
+| Manage frames scroll | 0% | 5 ms | 9 ms |
+| Album scroll (8 flings) | 0.24% | 5 ms | 11 ms |
+| Album → Detail | 1 of 63 | 6 ms | 22 ms |
+| Detail Photos pager | 0% | 5 ms | 11 ms |
+| Edit open (first after a start) | 1 of 62 | 5 ms | 17–21 ms |
+| Edit tabs | 0% | 5 ms | 9 ms |
+
+Capture, Pick and Result weren't re-measured in M9 (M8's numbers stand; their code didn't change apart from the tray thumbnails' early GPU upload). Low memory: `am send-trim-memory com.blaze.photobooth RUNNING_LOW` with Setup open, then `BACKGROUND`: no crash, the frames came back.
+
+What changed: a Perfetto trace of Edit's first open showed five 600 px photos uploading to the GPU inside one frame (≈ 8 ms) while five frame swatches decoded in parallel. Photos and swatches now start their upload as soon as they're decoded (`BitmapOps.forScreen`), and Pick loads the swatches one after another with a single update. The remaining slow frame is the first composition of the new screen. Right after installing, before Android has compiled the app, first opens have 2–3 slow frames (p99 ≈ 27–48 ms); the optional `cmd package compile` step above removes that wait.
+
 ---
 
 ## 16. Milestones
@@ -892,7 +989,7 @@ Each milestone ends with a **green build** (`assembleDebug testDebugUnitTest lin
 | **M6** ✅ | Export & share | MediaStore exporter (strip, single cut, all cuts) ✅, share sheet ✅, optional auto-save ✅, storage stats ✅, album multi-select save ✅, the Settings switches ✅ (moved up from M8) | Files appear in Google Photos under *Blaze Booth*, with correct filter and orientation ✅ (2026-10-20) |
 | **M7** ✅ | Her frames ♡ | Import flow and slot editor (§4.9) ✅, `frames` table ✅, Manage frames in Settings ✅, frame hide/cleanup rules ✅. Bundled frames are already processed (§5.5.6). New files in `photo-frames/` can arrive at any time: process them (§5.5.5) and show the human the previews for approval | Her frames appear first in Setup; a strip shot with one looks right on the phone; she can import a new frame on the phone ✅ (2026-10-20) |
 | **M8** ✅ | Polish | Animation pass (§7 complete, §7.1 audit) ✅, dark mode and contrast ✅, reduce-motion ✅, TalkBack labels ✅, font scale 200% ✅, copy review ✅, haptics check ✅, settings sheet polish (the switches work since M6) ✅, draft recovery (since M3) ✅ | Checklist in §6.7 and §7 passes on device ✅ (2026-10-20) |
-| **M9** | Hardening & release | Edge cases (§13), process-death test (`adb shell am kill`), R8 release build, baseline profile (optional), performance check (no jank in the Capture or Album scroll) | `assembleRelease` installs and runs; no crashes in a 15-minute exploratory session |
+| **M9** ✅ | Hardening & release | Edge cases (§13, every row verified) ✅, process-death test (`adb shell am kill`, §15.6) ✅, StrictMode ✅, R8 release build ✅, baseline profile ✅, performance check (§15.6) ✅, big-font Setup title ✅, backup rules ✅, install guide (§15.5) ✅ | `assembleRelease` installs and runs; no crashes in the release smoke test on the Pixel 9 ✅ (2026-10-20) |
 
 ---
 
@@ -1046,7 +1143,18 @@ Rules Claude follows while building this app:
 | 2026-10-20 | The M1 `PlaceholderScreen` (and its strings and screenshot) is deleted | Every screen is real since M7; its "Coming in…" copy must not linger. |
 | 2026-10-20 | Setup frame cards: the swatch and the name are one selectable (one TalkBack stop, the name tappable too) | TalkBack read the card without its name, and tapping the name did nothing (an M7 note). |
 | 2026-10-20 | `ShareHelper` takes its uri maker as a parameter | FileProvider's own path check expects `/` separators and fails in Robolectric on a Windows build machine; the phone uses the real FileProvider. |
-
+| 2026-10-20 | M9 keeps **debug-key signing** for the release build | It's a private sideload for one phone, and the same key lets a release go over the debug builds already installed without losing data. A new release key would only add a second file to lose. The catch (updates need this PC's `debug.keystore`) is written down in §15.5, with a backup step. |
+| 2026-10-20 | No extra R8 keep rules | Every library ships its own; the release build was checked on the phone, process death included (§15.5). |
+| 2026-10-20 | Baseline profile as a hand-written wildcard `baseline-prof.txt`, not a Macrobenchmark `:baselineprofile` module | The app is small enough to list whole; it needs no new module, plugin or dependency, no instrumentation runs on the phone (the camera and her real album are there) and can't go flaky. The libraries' own profiles already cover Compose. Measured gain is modest; the bigger gains were the release build itself and the GPU-upload fix (§15.6). |
+| 2026-10-20 | `<profileable android:shell="true"/>` in the manifest | Lets `adb` trace and measure the release build (Perfetto found the Edit first-frame cause this way). It exposes nothing to other apps. |
+| 2026-10-20 | Shown bitmaps start their GPU upload when decoded (`BitmapOps.forScreen` = `prepareToDraw`); Pick loads frame swatches one by one with one update | Perfetto: Edit's first open uploaded five photos in one frame while five swatch decodes competed for the CPU. Exports never call it (their bitmaps are never drawn on screen). |
+| 2026-10-20 | Debug builds turn on StrictMode (log only) from a content provider with the highest `initOrder` | It sees startup before `Application.onCreate`, and logging never breaks a test walk. Release builds don't contain it. |
+| 2026-10-20 | Add frame reopens the Photo Picker after a process death once a picture was picked | The picture only lived in memory and nothing is saved before Save; an empty screen with only ✕ was a dead end. |
+| 2026-10-20 | Edit's unsaved changes and Result's ✓ states are not kept across a process death | Edit writes nothing before Save by design (§4.7) and the saved strip is untouched; a ✓ is a per-visit hint. Both reopen on the right screen. |
+| 2026-10-20 | Captions are cut at 24 chars on a character boundary (`BreakIterator`) | `take(24)` could split an emoji's surrogate pair or a joined emoji, leaving a broken box on the strip. |
+| 2026-10-20 | `BoothApp.onTrimMemory` empties the frame-artwork cache (half while on screen) | It can hold up to 48 MB and is quick to rebuild; Coil already trims its own cache. |
+| 2026-10-20 | Device transfer also takes `files/frames/`; the cloud backup leaves out the database and `frames/` (only settings go to the cloud) | Before, a new phone got her imported frames' rows without their pictures, and a cloud restore would have brought album rows without photos. |
+| 2026-10-20 | Setup's strip starts below the title's real height (≥ 56 dp; font size × 1.35 + 10 dp) | At 200% font the title's "y" touched the strip; Fredoka's descenders hang below its line box. At normal sizes nothing moves. |
 ---
 
 ## 19. Out of scope / future ideas
