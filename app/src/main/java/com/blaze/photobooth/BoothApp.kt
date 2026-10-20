@@ -4,6 +4,12 @@ import android.app.Application
 import android.content.Context
 import com.blaze.photobooth.data.SessionRepository
 import com.blaze.photobooth.data.db.BoothDatabase
+import com.blaze.photobooth.data.export.BoothExportService
+import com.blaze.photobooth.data.export.ExportService
+import com.blaze.photobooth.data.export.PhotoExporter
+import com.blaze.photobooth.data.export.ResolverGallery
+import com.blaze.photobooth.data.export.ShareHelper
+import com.blaze.photobooth.data.export.StripAutoSaver
 import com.blaze.photobooth.data.files.BoothDraftStore
 import com.blaze.photobooth.data.files.SessionFileStore
 import com.blaze.photobooth.data.frames.FrameRepository
@@ -30,6 +36,9 @@ class BoothApp : Application() {
         // old soft deletes are purged, and lost thumbnails are made again.
         container.appScope.launch {
             container.sessionRepository.startup(makeThumb = container.stripExporter::writeThumb)
+            // Old shared copies (§11.5) and any half-made export from a crash.
+            container.shareHelper.cleanOld()
+            container.exportWorkDir.deleteRecursively()
         }
     }
 }
@@ -64,6 +73,25 @@ class AppContainer(val appContext: Context) {
 
     /** Print: the strip at full size (§10). */
     val stripExporter: StripExporter by lazy { StripExporter(StripRenderer.get(appContext)) }
+
+    /** Where a file for Photos is made before it's streamed into MediaStore (§11.5). */
+    val exportWorkDir: File get() = File(appContext.cacheDir, "export")
+
+    /** Save to Photos (§11.5). */
+    val photoExporter: PhotoExporter by lazy {
+        PhotoExporter(ResolverGallery(appContext.contentResolver), sessionRepository.files, exportWorkDir)
+    }
+
+    /** The system share sheet (§11.5). */
+    val shareHelper: ShareHelper by lazy { ShareHelper(appContext, photoExporter) }
+
+    /** Save and Share for Result, Detail and the Album's multi-select. */
+    val exports: ExportService by lazy { BoothExportService(photoExporter, shareHelper) }
+
+    /** Settings' *Auto-save strip to Photos after printing* (§4.8). */
+    val autoSaver: StripAutoSaver by lazy {
+        StripAutoSaver(boothPreferences.settings, sessionRepository::session, { photoExporter.save(it) }, appScope)
+    }
 
     companion object {
         /** `files/sessions/` (§11.1): the draft and, from M4, every finished session. */

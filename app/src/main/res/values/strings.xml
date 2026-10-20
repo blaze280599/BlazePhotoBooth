@@ -20,20 +20,25 @@
     <string name="home_draft_continue">Continue</string>
     <string name="home_draft_discard">Discard</string>
 
-    <!-- Settings sheet (§4.8). Rows are a preview until M8 wires them up. -->
+    <!-- Settings sheet (§4.8). Live since M6, except Manage frames (M7). -->
     <string name="settings_title">Settings</string>
-    <string name="settings_preview_note">Just a peek for now ✿ these switch on in a later update.</string>
+    <string name="settings_note">Make the booth yours ✿</string>
     <string name="settings_soon">Soon</string>
     <string name="settings_sounds">Shutter &amp; countdown sounds</string>
     <string name="settings_haptics">Haptics</string>
     <string name="settings_screen_flash">Screen flash for selfies</string>
     <string name="settings_save_mirrored">Save mirrored selfies as seen</string>
+    <string name="settings_save_mirrored_summary">The same switch as Mirror selfies in Setup</string>
     <string name="settings_auto_save">Auto-save strip to Photos</string>
     <string name="settings_auto_save_summary">After printing</string>
     <string name="settings_manage_frames">Manage frames</string>
     <string name="settings_manage_frames_summary">Rename, reorder or hide your frames</string>
     <string name="settings_storage">Storage used</string>
-    <string name="settings_storage_summary">Counted once the album arrives</string>
+    <string name="settings_storage_measuring">Counting…</string>
+    <plurals name="settings_storage_value">
+        <item quantity="one">%1$d strip · %2$s MB</item>
+        <item quantity="other">%1$d strips · %2$s MB</item>
+    </plurals>
     <string name="settings_about">About &amp; licenses</string>
     <string name="settings_about_summary">Fonts: Fredoka and Gaegu (SIL OFL 1.1)</string>
 
@@ -205,12 +210,12 @@
     <string name="result_save_strip">Save strip</string>
     <string name="result_save_photos">Save photos</string>
     <string name="result_share">Share</string>
-    <string name="result_soon">Soon</string>
+    <string name="result_auto_saving">Saving to Photos too…</string>
+    <string name="result_auto_saved">Also saved to Photos ✓</string>
     <string name="result_album">Album</string>
     <string name="result_again">Again!</string>
     <string name="cd_result_home">Home</string>
     <string name="cd_result_strip">Your printed strip</string>
-    <string name="cd_result_soon">%s, coming soon</string>
 
     <string name="cd_shot">Shot %d</string>
 
@@ -240,6 +245,7 @@
     <string name="album_no_favorites">No favourites yet. Tap ♡ on a strip you love.</string>
     <string name="album_no_matches">No strips here yet.</string>
     <string name="album_save_selected">Save to Photos</string>
+    <string name="album_save_progress">Saving %1$d of %2$d…</string>
     <string name="album_undo">Undo</string>
     <plurals name="album_selected">
         <item quantity="one">%d selected</item>
@@ -268,8 +274,41 @@
     <string name="detail_save_strip">Save strip</string>
     <string name="detail_save_photo">Save photo</string>
     <string name="detail_save_all">Save all</string>
+    <string name="detail_share_strip">The strip</string>
+    <string name="detail_share_photo">This photo</string>
+    <plurals name="detail_share_all">
+        <item quantity="one">The photo</item>
+        <item quantity="other">All %d photos</item>
+    </plurals>
     <string name="detail_delete">Delete</string>
     <string name="detail_edit">Edit</string>
     <string name="cd_detail_strip">Your strip</string>
     <string name="cd_detail_unused_shot">Unused shot %d. Shows it above</string>
+
+    <!-- Save to Photos and Share (§11.5, §7 A12, §13) -->
+    <string name="export_saved">Saved</string>
+    <string name="export_progress_short">%1$d of %2$d</string>
+    <string name="export_retry">Retry</string>
+    <string name="export_strip_saved">Strip saved to Photos</string>
+    <plurals name="export_strips_saved">
+        <item quantity="one">Strip saved to Photos</item>
+        <item quantity="other">%d strips saved to Photos</item>
+    </plurals>
+    <plurals name="export_photos_saved">
+        <item quantity="one">Photo saved to Photos</item>
+        <item quantity="other">%d photos saved to Photos</item>
+    </plurals>
+    <plurals name="export_some_missing">
+        <item quantity="one">%1$s · %2$d was missing</item>
+        <item quantity="other">%1$s · %2$d were missing</item>
+    </plurals>
+    <string name="export_error_missing">Oh no, that file is missing from your album.</string>
+    <string name="export_error_space">Your phone is full. Free up some space, then try again.</string>
+    <plurals name="export_error_partial">
+        <item quantity="one">%d saved, but the rest didn\'t make it.</item>
+        <item quantity="other">%d saved, but the rest didn\'t make it.</item>
+    </plurals>
+    <string name="export_error">Couldn\'t save to Photos.</string>
+    <string name="export_auto_save_failed">Couldn\'t auto-save the strip to Photos.</string>
+    <string name="export_share_error">Couldn\'t open sharing.</string>
 </resources>

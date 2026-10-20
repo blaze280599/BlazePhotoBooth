@@ -59,7 +59,9 @@ class SetupViewModel(
                 state.update { s ->
                     s.copy(frames = latest.map { o -> s.frames.firstOrNull { it.option.id == o.id } ?: FrameCardState(o) })
                 }
-                config.value = resolve(config.value ?: preferences.config.first(), latest)
+                // First launch: Settings' "Save mirrored selfies" may already have been chosen (§4.8).
+                val mirror = preferences.settings.first().saveMirrored
+                config.value = resolve(config.value ?: preferences.config.first(), latest, mirror)
                 latest.filterIsInstance<FrameOption.Artwork>().forEach { loadThumbnail(it) }
             }
         }
@@ -110,9 +112,9 @@ class SetupViewModel(
         }
     }
 
-    private fun resolve(saved: BoothConfig?, options: List<FrameOption>): BoothConfig {
+    private fun resolve(saved: BoothConfig?, options: List<FrameOption>, mirror: Boolean): BoothConfig {
         val first = options.firstOrNull()?.id ?: BoothConfig().frameId
-        val base = saved ?: BoothConfig(frameId = first)
+        val base = saved ?: BoothConfig(frameId = first, mirror = mirror)
         return if (options.any { it.id == base.frameId }) base else base.copy(frameId = first)
     }
 

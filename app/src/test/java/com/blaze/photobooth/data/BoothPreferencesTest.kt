@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.blaze.photobooth.data.prefs.BoothPreferences
+import com.blaze.photobooth.data.prefs.BoothSettings
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
@@ -85,5 +86,25 @@ class BoothPreferencesTest {
         val prefs = mutablePreferencesOf()
         BoothPreferences.writeConfig(prefs, BoothConfig(frameId = FrameId.custom("gone")))
         assertEquals(FrameId.custom("gone"), BoothPreferences.readConfig(prefs)?.frameId)
+    }
+    @Test
+    fun settingsDefaultOnExceptAutoSaveAndRoundTrip() {
+        val d = BoothPreferences.readSettings(mutablePreferencesOf())
+        assertEquals(BoothSettings(sounds = true, haptics = true, screenFlash = true, saveMirrored = true, autoSaveStrip = false), d)
+        val prefs = mutablePreferencesOf()
+        val s = BoothSettings(sounds = false, haptics = false, screenFlash = false, saveMirrored = false, autoSaveStrip = true)
+        BoothPreferences.writeSettings(prefs, s)
+        assertEquals(s, BoothPreferences.readSettings(prefs))
+    }
+
+    @Test
+    fun saveMirroredIsSetupsMirrorSelfies() {
+        // §4.8 and §5.4: one stored choice, changed from Settings or from Setup.
+        val prefs = mutablePreferencesOf()
+        BoothPreferences.writeConfig(prefs, BoothConfig(mirror = true))
+        BoothPreferences.writeSettings(prefs, BoothSettings(saveMirrored = false))
+        assertEquals(false, BoothPreferences.readConfig(prefs)?.mirror)
+        BoothPreferences.writeConfig(prefs, BoothConfig(mirror = true))
+        assertEquals(true, BoothPreferences.readSettings(prefs).saveMirrored)
     }
 }

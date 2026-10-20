@@ -10,7 +10,7 @@ import androidx.compose.ui.platform.LocalView
 /**
  * The booth's haptics (README §6.5), played through the view so they honour the system
  * "touch feedback" setting. [enabled] is the in-app Haptics switch
- * ([com.blaze.photobooth.data.prefs.BoothSettings.haptics]; its toggle joins in M8).
+ * ([com.blaze.photobooth.data.prefs.BoothSettings.haptics], the Settings sheet's toggle since M6).
  */
 class BoothHaptics(private val view: View) {
 
@@ -40,8 +40,10 @@ class BoothHaptics(private val view: View) {
     }
 }
 
+/** The booth's haptics for this screen, switched by Settings' Haptics row ([LocalBoothSettings]). */
 @Composable
 fun rememberBoothHaptics(): BoothHaptics {
     val view = LocalView.current
-    return remember(view) { BoothHaptics(view) }
+    val enabled = LocalBoothSettings.current.haptics
+    return remember(view) { BoothHaptics(view) }.also { it.enabled = enabled }
 }

@@ -3,6 +3,7 @@ package com.blaze.photobooth.ui.feature.detail
 import androidx.compose.runtime.Immutable
 import com.blaze.photobooth.model.FrameTheme
 import com.blaze.photobooth.model.PhotoFilter
+import com.blaze.photobooth.ui.feature.export.ExportActions
 import java.io.File
 import java.time.LocalDate
 
@@ -31,6 +32,8 @@ data class DetailUiState(
     val deleting: Boolean = false,
     /** The session is gone (deleted elsewhere): the route leaves. */
     val missing: Boolean = false,
+    /** Save strip, Save photo, Save all and Share (§11.5). */
+    val actions: ExportActions = ExportActions(),
 ) {
     /** The Photos pager: the cuts, then the unused shots. */
     val photos: List<DetailPhoto> get() = cuts + unused
@@ -53,6 +56,21 @@ sealed interface DetailEvent {
     data object ToggleFavorite : DetailEvent
     data object Edit : DetailEvent
     data object Delete : DetailEvent
+    data object SaveStrip : DetailEvent
+
+    /** *Save this photo*: the Photos pager's page in view (a cut or an unused shot). */
+    data class SavePhoto(val shotIndex: Int) : DetailEvent
+    data object SaveAll : DetailEvent
+    data class Share(val what: ShareWhat) : DetailEvent
+}
+
+/** What Detail's Share menu sends (§11.5). */
+sealed interface ShareWhat {
+    data object Strip : ShareWhat
+    data class Photo(val shotIndex: Int) : ShareWhat
+
+    /** Every cut, in strip order. */
+    data object AllPhotos : ShareWhat
 }
 
 sealed interface DetailEffect {

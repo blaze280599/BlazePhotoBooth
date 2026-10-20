@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,15 +35,21 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +58,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -64,12 +72,14 @@ import com.blaze.photobooth.core.rememberBoothHaptics
 import com.blaze.photobooth.render.Filters
 import com.blaze.photobooth.ui.components.BoothTabRow
 import com.blaze.photobooth.ui.components.FavoriteButton
-import com.blaze.photobooth.ui.components.SoonAction
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
 import com.blaze.photobooth.ui.components.StripImage
 import com.blaze.photobooth.ui.components.StripImageKeys
 import com.blaze.photobooth.ui.feature.album.AlbumViewModel
+import com.blaze.photobooth.ui.feature.export.ExportAction
+import com.blaze.photobooth.ui.feature.export.ExportActions
+import com.blaze.photobooth.ui.feature.export.ExportKey
 import com.blaze.photobooth.ui.feature.setup.nameRes
 import com.blaze.photobooth.ui.navigation.SharedKeys
 import com.blaze.photobooth.ui.navigation.sharedHero
@@ -88,8 +98,8 @@ enum class DetailTab(val label: Int) {
 
 /**
  * Detail (README §4.7): the strip as the hero (shared element from its Album card, §7 A10), a *Strip | Photos*
- * toggle (the cuts with the session's filter, then the unused shots), and the actions: ♡ up top, Edit and
- * Delete, plus Save and Share, which arrive in M6. Delete shrinks the strip away.
+ * toggle (the cuts with the session's filter, then the unused shots), and the actions: ♡ up top, Save strip, Save
+ * this photo (the Photos page in view), Save all, Share (a small menu), Delete and Edit. Delete shrinks the strip away.
  */
 @Composable
 fun DetailScreen(
@@ -97,11 +107,15 @@ fun DetailScreen(
     onEvent: (DetailEvent) -> Unit,
     modifier: Modifier = Modifier,
     initialTab: DetailTab = DetailTab.Strip,
+    initialPhoto: Int = 0,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val extra = BoothTheme.extraColors
     val haptics = rememberBoothHaptics()
     val reduceMotion = LocalReduceMotion.current
     val pager = rememberPagerState(initialPage = initialTab.ordinal) { DetailTab.entries.size }
+    val photos = rememberPagerState(initialPage = initialPhoto) { state.photos.size }
+    val scope = rememberCoroutineScope()
     val gone by animateFloatAsState(
         if (state.deleting) 1f else 0f,
         if (reduceMotion) tween(0) else tween(AlbumViewModel.LeaveMillis.toInt()),
@@ -119,27 +133,39 @@ fun DetailScreen(
             onTick = haptics::segmentTick,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
         )
-        HorizontalPager(
-            state = pager,
-            // The Photos tab has its own pager; tabs switch by tapping only.
-            userScrollEnabled = false,
-            verticalAlignment = Alignment.Top,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .graphicsLayer {
-                    val s = 1f - 0.4f * gone
-                    scaleX = s
-                    scaleY = s
-                    alpha = 1f - gone
-                },
-        ) { page ->
-            when (DetailTab.entries[page]) {
-                DetailTab.Strip -> StripPage(state)
-                DetailTab.Photos -> PhotosPage(state)
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            HorizontalPager(
+                state = pager,
+                // The Photos tab has its own pager; tabs switch by tapping only.
+                userScrollEnabled = false,
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val s = 1f - 0.4f * gone
+                        scaleX = s
+                        scaleY = s
+                        alpha = 1f - gone
+                    },
+            ) { page ->
+                when (DetailTab.entries[page]) {
+                    DetailTab.Strip -> StripPage(state)
+                    DetailTab.Photos -> PhotosPage(state, photos)
+                }
             }
+            // Just above the action bar, so the buttons stay in sight under a Retry.
+            SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp))
         }
-        ActionBar(onEvent)
+        val onPhotosTab = pager.currentPage == DetailTab.Photos.ordinal
+        ActionBar(
+            actions = state.actions,
+            enabled = state.loaded && !state.deleting,
+            photo = state.photos.getOrNull(photos.currentPage)?.takeIf { onPhotosTab },
+            cuts = state.cuts.size,
+            onEvent = onEvent,
+            // On the Strip tab, *Save photo* first shows the photos, so she sees which one she's saving.
+            onShowPhotos = { scope.launch { pager.animateScrollToPage(DetailTab.Photos.ordinal, animationSpec = BoothMotion.gentle()) } },
+        )
     }
 }
 
@@ -215,10 +241,9 @@ private fun StripPage(state: DetailUiState) {
  * The cuts one by one, with the session's filter (§4.7), then the unused bonus shots, which the row below jumps to.
  */
 @Composable
-private fun PhotosPage(state: DetailUiState) {
+private fun PhotosPage(state: DetailUiState, pager: PagerState) {
     val photos = state.photos
     if (photos.isEmpty()) return
-    val pager = rememberPagerState { photos.size }
     val scope = rememberCoroutineScope()
     val colorFilter = remember(state.filter) { Filters.compose(state.filter) }
     Column(Modifier.fillMaxSize()) {
@@ -318,9 +343,20 @@ private fun PageDots(count: Int, current: Int) {
     }
 }
 
-/** §4.7's actions. Saving to Photos and sharing are M6, so they wear "Soon" like Result's. */
+/**
+ * §4.7's actions: Save strip, Save photo (the photo in view; on the Strip tab it shows the Photos first), Save all
+ * (every cut), Share (a menu: the strip, this photo, all photos), then Delete and Edit.
+ */
 @Composable
-private fun ActionBar(onEvent: (DetailEvent) -> Unit) {
+private fun ActionBar(
+    actions: ExportActions,
+    enabled: Boolean,
+    photo: DetailPhoto?,
+    cuts: Int,
+    onEvent: (DetailEvent) -> Unit,
+    onShowPhotos: () -> Unit,
+) {
+    val canExport = enabled && !actions.busy
     Surface(
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -332,10 +368,34 @@ private fun ActionBar(onEvent: (DetailEvent) -> Unit) {
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth()) {
-                SoonAction(Icons.Rounded.Download, R.string.detail_save_strip, Modifier.weight(1f), width = null)
-                SoonAction(Icons.Rounded.Image, R.string.detail_save_photo, Modifier.weight(1f), width = null)
-                SoonAction(Icons.Rounded.Collections, R.string.detail_save_all, Modifier.weight(1f), width = null)
-                SoonAction(Icons.Rounded.Share, R.string.result_share, Modifier.weight(1f), width = null)
+                ExportAction(
+                    Icons.Rounded.Download,
+                    R.string.detail_save_strip,
+                    actions[ExportKey.Strip],
+                    canExport,
+                    { onEvent(DetailEvent.SaveStrip) },
+                    Modifier.weight(1f),
+                    width = null,
+                )
+                ExportAction(
+                    Icons.Rounded.Image,
+                    R.string.detail_save_photo,
+                    actions[ExportKey.Photo(photo?.shotIndex ?: -1)],
+                    canExport,
+                    { if (photo != null) onEvent(DetailEvent.SavePhoto(photo.shotIndex)) else onShowPhotos() },
+                    Modifier.weight(1f),
+                    width = null,
+                )
+                ExportAction(
+                    Icons.Rounded.Collections,
+                    R.string.detail_save_all,
+                    actions[ExportKey.AllPhotos],
+                    canExport && cuts > 0,
+                    { onEvent(DetailEvent.SaveAll) },
+                    Modifier.weight(1f),
+                    width = null,
+                )
+                ShareMenu(actions, canExport, photo, cuts, onEvent, Modifier.weight(1f))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SquishyButton(
@@ -360,3 +420,57 @@ private fun ActionBar(onEvent: (DetailEvent) -> Unit) {
     }
 }
 
+
+/** Share opens a little menu (§11.5): the strip, the photo in view (on the Photos tab), or every cut. */
+@Composable
+private fun ShareMenu(
+    actions: ExportActions,
+    enabled: Boolean,
+    photo: DetailPhoto?,
+    cuts: Int,
+    onEvent: (DetailEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        ExportAction(
+            Icons.Rounded.Share,
+            R.string.result_share,
+            actions[ExportKey.Share],
+            enabled,
+            { open = true },
+            Modifier.fillMaxWidth(),
+            width = null,
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(20.dp)) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.detail_share_strip)) },
+                leadingIcon = { Icon(Icons.Rounded.Download, contentDescription = null) },
+                onClick = {
+                    open = false
+                    onEvent(DetailEvent.Share(ShareWhat.Strip))
+                },
+            )
+            if (photo != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.detail_share_photo)) },
+                    leadingIcon = { Icon(Icons.Rounded.Image, contentDescription = null) },
+                    onClick = {
+                        open = false
+                        onEvent(DetailEvent.Share(ShareWhat.Photo(photo.shotIndex)))
+                    },
+                )
+            }
+            if (cuts > 0) {
+                DropdownMenuItem(
+                    text = { Text(pluralStringResource(R.plurals.detail_share_all, cuts, cuts)) },
+                    leadingIcon = { Icon(Icons.Rounded.Collections, contentDescription = null) },
+                    onClick = {
+                        open = false
+                        onEvent(DetailEvent.Share(ShareWhat.AllPhotos))
+                    },
+                )
+            }
+        }
+    }
+}

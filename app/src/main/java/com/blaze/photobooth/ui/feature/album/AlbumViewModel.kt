@@ -12,6 +12,13 @@ import com.blaze.photobooth.BoothApp
 import com.blaze.photobooth.data.DeletedBatch
 import com.blaze.photobooth.data.SessionRepository
 import com.blaze.photobooth.data.db.SessionEntity
+import com.blaze.photobooth.data.export.ExportItem
+import com.blaze.photobooth.data.export.ExportJob
+import com.blaze.photobooth.data.export.ExportService
+import com.blaze.photobooth.ui.feature.export.ExportKey
+import com.blaze.photobooth.ui.feature.export.ExportMessage
+import com.blaze.photobooth.ui.feature.export.ExportTasks
+import com.blaze.photobooth.ui.feature.export.SavedWhat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -36,10 +43,12 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The album (README §4.6): every saved strip, newest first under month headers, with the filter chips, ♡,
  * multi-select and delete. Deletes are soft (§11.2): cards shrink away, the rows are hidden, and the route shows
- * one Undo snackbar per batch ([undo]).
+ * one Undo snackbar per batch ([undo]). The multi-select also saves its strips to Photos (§11.5), one after another
+ * with progress.
  */
 class AlbumViewModel(
     private val sessions: SessionRepository,
+    exports: ExportService,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val leaveMillis: Long = LeaveMillis,
@@ -56,6 +65,13 @@ class AlbumViewModel(
     @Volatile
     private var stored: Map<String, Boolean> = emptyMap()
 
+    /** The rows behind the cards, newest first, for Save to Photos. */
+    @Volatile
+    private var rows: List<SessionEntity> = emptyList()
+
+    private val tasks = ExportTasks(viewModelScope, exports)
+    val messages: Flow<ExportMessage> = tasks.messages
+
     private val effectChannel = Channel<AlbumEffect>(Channel.BUFFERED)
     val effects: Flow<AlbumEffect> = effectChannel.receiveAsFlow()
 
@@ -63,6 +79,7 @@ class AlbumViewModel(
     val undo: StateFlow<DeletedBatch?> = sessions.pendingUndo
 
     private val items: Flow<List<AlbumItem>> = sessions.sessions
+        .onEach { rows = it }
         .map { list -> list.map(::itemOf) }
         .flowOn(io)
         .onEach { list ->
@@ -71,7 +88,7 @@ class AlbumViewModel(
         }
 
     val uiState: StateFlow<AlbumUiState> =
-        combine(items, favorites.overrides, filter, selection, leaving) { all, overrides, chosen, selected, gone ->
+        combine(items, favorites.overrides, filter, selection, combine(leaving, tasks.actions, ::Pair)) { all, overrides, chosen, selected, (gone, actions) ->
             val shown = if (overrides.isEmpty()) all else all.map { item -> overrides[item.id]?.let { item.copy(favorite = it) } ?: item }
             val filters = AlbumGrouping.filters(shown)
             val active = chosen.takeIf { it in filters } ?: AlbumFilter.All
@@ -84,6 +101,7 @@ class AlbumViewModel(
                 filter = active,
                 selection = selected.filterTo(HashSet()) { it in ids },
                 leaving = gone,
+                actions = actions,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), AlbumUiState())
 
@@ -97,7 +115,9 @@ class AlbumViewModel(
                 selection.value = emptySet()
             }
             AlbumEvent.ClearSelection -> selection.value = emptySet()
+            AlbumEvent.SaveSelected -> saveSelected()
             AlbumEvent.DeleteSelected -> {
+                if (tasks.actions.value.busy) return
                 val ids = selection.value
                 selection.value = emptySet()
                 delete(ids)
@@ -114,6 +134,22 @@ class AlbumViewModel(
 
     /** The Undo snackbar timed out or was swiped away. */
     fun undoExpired(batch: DeletedBatch) = sessions.dismissUndo(batch)
+
+    /**
+     * Each selected strip's `strip.jpg` goes to Photos (§4.6), newest first. After the ✓ has shown for a moment, the
+     * selection clears.
+     */
+    private fun saveSelected() {
+        val chosen = selection.value
+        val jobs = rows.filter { it.id in chosen }.map { ExportJob(it, ExportItem.Strip) }
+        tasks.save(ExportKey.Selection, SavedWhat.Strips, jobs) {
+            viewModelScope.launch {
+                delay(SavedBeatMillis)
+                selection.value = emptySet()
+                tasks.reset(ExportKey.Selection)
+            }
+        }
+    }
 
     private fun toggleSelected(id: String) = selection.update { if (id in it) it - id else it + id }
 
@@ -156,6 +192,9 @@ class AlbumViewModel(
         /** How long a deleted card takes to shrink away (§4.7). */
         const val LeaveMillis = 260L
 
+        /** The ✓ on *Save to Photos* shows this long before the selection clears. */
+        const val SavedBeatMillis = 900L
+
         /** A classic strip's shape, for a picture that can't be read. */
         private const val FallbackAspect = 1f / 3f
 
@@ -169,7 +208,7 @@ class AlbumViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) as BoothApp
-                AlbumViewModel(app.container.sessionRepository)
+                AlbumViewModel(app.container.sessionRepository, app.container.exports)
             }
         }
     }

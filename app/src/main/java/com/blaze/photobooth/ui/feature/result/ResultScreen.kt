@@ -37,6 +37,8 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,11 +67,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import com.blaze.photobooth.R
 import com.blaze.photobooth.core.LocalReduceMotion
+import com.blaze.photobooth.data.export.AutoSaveStatus
+import com.blaze.photobooth.ui.feature.export.ExportAction
+import com.blaze.photobooth.ui.feature.export.ExportActionState
+import com.blaze.photobooth.ui.feature.export.ExportKey
+import com.blaze.photobooth.ui.feature.export.ExportPhase
 import com.blaze.photobooth.ui.components.Confetti
 import com.blaze.photobooth.ui.components.ConfettiPhysics
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
-import com.blaze.photobooth.ui.components.SoonAction
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.handwritten
 import kotlinx.coroutines.coroutineScope
@@ -77,11 +83,16 @@ import kotlinx.coroutines.launch
 
 /**
  * Result (README §4.5): the strip feeds out of a printer slot in little steps, sways once on a pendulum spring,
- * and confetti bursts (§7 A9). The session is already saved, so the "Saved to your album ♡" chip shows.
- * Saving to Photos and sharing arrive in M6; until then they're shown as "Soon".
+ * and confetti bursts (§7 A9). The session is already saved, so the "Saved to your album ♡" chip shows. The
+ * toolbar saves the strip or its cuts to Photos and shares the strip (§11.5); a save ends in a ✓ and a snackbar (A12).
  */
 @Composable
-fun ResultScreen(state: ResultUiState, onEvent: (ResultEvent) -> Unit, modifier: Modifier = Modifier) {
+fun ResultScreen(
+    state: ResultUiState,
+    onEvent: (ResultEvent) -> Unit,
+    modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+) {
     val extra = BoothTheme.extraColors
     val reduceMotion = LocalReduceMotion.current
     val feed = remember { Animatable(0f) }
@@ -153,22 +164,29 @@ fun ResultScreen(state: ResultUiState, onEvent: (ResultEvent) -> Unit, modifier:
                         .semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
-            Printer(
-                state = state,
-                feed = feed.value,
-                sway = sway.value,
-                fade = reduceMotion,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-            )
-            Box(Modifier.height(52.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                Printer(
+                    state = state,
+                    feed = feed.value,
+                    sway = sway.value,
+                    fade = reduceMotion,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 12.dp),
+                )
+                // Above the chip and toolbar, so Album and Again! stay in sight under a Retry.
+                SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
+            }
+            Column(Modifier.height(76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 androidx.compose.animation.AnimatedVisibility(visible = printed && state.saved, enter = scaleIn(spring(0.5f, 400f), 0.6f) + fadeIn()) {
                     SavedChip()
                 }
+                val note = state.autoSave
+                androidx.compose.animation.AnimatedVisibility(visible = printed && note != null && note != AutoSaveStatus.Failed, enter = fadeIn()) {
+                    AutoSaveNote(note)
+                }
             }
-            ActionToolbar(onEvent)
+            ActionToolbar(state, onEvent)
         }
         Confetti(
             particles = particles,
@@ -273,12 +291,28 @@ private fun SavedChip() {
     }
 }
 
+/** Settings' auto-save (§4.8) under the chip: "Saving to Photos too…", then "Also saved to Photos ✓". */
+@Composable
+private fun AutoSaveNote(status: AutoSaveStatus?) {
+    Text(
+        stringResource(if (status == AutoSaveStatus.Saved) R.string.result_auto_saved else R.string.result_auto_saving),
+        style = MaterialTheme.typography.titleSmall.handwritten(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .padding(top = 2.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+    )
+}
+
 /**
- * The floating toolbar (§4.5). Album and Again! work now; saving to Photos and sharing arrive with M6, so they
- * wear a "Soon" tag and are disabled.
+ * The floating toolbar (§4.5): Save strip, Save photos (every cut) and Share (the strip), then Album and Again!.
+ * While a save runs (or the auto-save after printing), the save and share buttons wait.
  */
 @Composable
-private fun ActionToolbar(onEvent: (ResultEvent) -> Unit) {
+private fun ActionToolbar(state: ResultUiState, onEvent: (ResultEvent) -> Unit) {
+    val autoSaving = state.autoSave == AutoSaveStatus.Saving
+    val enabled = state.saved && !state.actions.busy && !autoSaving
+    val strip = if (autoSaving) ExportActionState(ExportPhase.Busy) else state.actions[ExportKey.Strip]
     Surface(
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -287,9 +321,15 @@ private fun ActionToolbar(onEvent: (ResultEvent) -> Unit) {
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                SoonAction(Icons.Rounded.Download, R.string.result_save_strip)
-                SoonAction(Icons.Rounded.Collections, R.string.result_save_photos)
-                SoonAction(Icons.Rounded.Share, R.string.result_share)
+                ExportAction(Icons.Rounded.Download, R.string.result_save_strip, strip, enabled, { onEvent(ResultEvent.SaveStrip) })
+                ExportAction(
+                    Icons.Rounded.Collections,
+                    R.string.result_save_photos,
+                    state.actions[ExportKey.AllPhotos],
+                    enabled && state.cuts > 0,
+                    { onEvent(ResultEvent.SavePhotos) },
+                )
+                ExportAction(Icons.Rounded.Share, R.string.result_share, state.actions[ExportKey.Share], enabled, { onEvent(ResultEvent.Share) })
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SquishyButton(

@@ -10,6 +10,10 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.blaze.photobooth.BoothApp
 import com.blaze.photobooth.data.SessionRepository
 import com.blaze.photobooth.data.db.SessionEntity
+import com.blaze.photobooth.data.db.ShotEntity
+import com.blaze.photobooth.data.export.ExportItem
+import com.blaze.photobooth.data.export.ExportJob
+import com.blaze.photobooth.data.export.ExportService
 import com.blaze.photobooth.data.frames.FrameRepository
 import com.blaze.photobooth.model.FrameId
 import com.blaze.photobooth.model.FrameTheme
@@ -17,6 +21,11 @@ import com.blaze.photobooth.model.PhotoFilter
 import com.blaze.photobooth.ui.feature.album.AlbumGrouping
 import com.blaze.photobooth.ui.feature.album.AlbumViewModel
 import com.blaze.photobooth.ui.feature.album.FavoriteToggles
+import com.blaze.photobooth.ui.feature.export.ExportKey
+import com.blaze.photobooth.ui.feature.export.ExportMessage
+import com.blaze.photobooth.ui.feature.export.ExportPhase
+import com.blaze.photobooth.ui.feature.export.ExportTasks
+import com.blaze.photobooth.ui.feature.export.SavedWhat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -34,12 +43,14 @@ import java.time.ZoneId
 
 /**
  * Detail (README §4.7): one saved strip, its cuts and unused shots, ♡, Edit and Delete. It follows the session's
- * row, so a favourite from anywhere or a saved Edit shows up at once.
+ * row, so a favourite from anywhere or a saved Edit shows up at once. Save strip, Save this photo, Save all and
+ * Share (§11.5) save the files as they are on disk, so a strip whose frame is gone still saves (§13).
  */
 class DetailViewModel(
     private val sessionId: String,
     private val sessions: SessionRepository,
     private val frames: FrameRepository,
+    exports: ExportService,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
@@ -55,6 +66,16 @@ class DetailViewModel(
     @Volatile
     private var storedFavorite = false
 
+    private val tasks = ExportTasks(viewModelScope, exports)
+    val messages: Flow<ExportMessage> = tasks.messages
+
+    /** The row and shots the export jobs are made from (refreshed with every load, so an Edit is saved as edited). */
+    @Volatile
+    private var row: SessionEntity? = null
+
+    @Volatile
+    private var shots: List<ShotEntity> = emptyList()
+
     init {
         viewModelScope.launch {
             var loadedVersion: Long? = null
@@ -66,12 +87,15 @@ class DetailViewModel(
                 storedFavorite = session.isFavorite
                 favorites.onStored(mapOf(sessionId to session.isFavorite))
                 if (loadedVersion != session.updatedAt) {
+                    // An Edit changed the strip: it can be saved again.
+                    if (loadedVersion != null) tasks.resetDone()
                     loadedVersion = session.updatedAt
                     load(session)
                 }
                 state.update { it.copy(favorite = favorites.resolve(sessionId, session.isFavorite)) }
             }
         }
+        viewModelScope.launch { tasks.actions.collect { a -> state.update { it.copy(actions = a) } } }
         viewModelScope.launch {
             favorites.overrides.collect { overrides ->
                 state.update { it.copy(favorite = overrides[sessionId] ?: storedFavorite) }
@@ -83,8 +107,37 @@ class DetailViewModel(
         when (event) {
             DetailEvent.ToggleFavorite -> favorites.toggle(sessionId, storedFavorite)
             DetailEvent.Delete -> delete()
+            DetailEvent.SaveStrip -> saveOnce(ExportKey.Strip, SavedWhat.Strip) { listOf(ExportItem.Strip) }
+            is DetailEvent.SavePhoto -> saveOnce(ExportKey.Photo(event.shotIndex), SavedWhat.Photos) { photos ->
+                photos.filter { it.shotIndex == event.shotIndex }
+            }
+            DetailEvent.SaveAll -> saveOnce(ExportKey.AllPhotos, SavedWhat.Photos) { photos ->
+                photos.filter { it.kind == ExportItem.Photo.Kind.Cut }
+            }
+            is DetailEvent.Share -> share(event.what)
             DetailEvent.Back, DetailEvent.Edit -> Unit // the route's
         }
+    }
+
+    /** Every photo of the session: the cuts (strip order), then the unused shots. */
+    private fun photoItems(): List<ExportItem.Photo> = ExportItem.cutsOf(shots) + ExportItem.bonusOf(shots)
+
+    /** A button that already saved stays ✓ (§7 A12), so the same file isn't saved twice by accident. */
+    private fun saveOnce(key: ExportKey, what: SavedWhat, items: (List<ExportItem.Photo>) -> List<ExportItem>) {
+        val session = row ?: return
+        if (state.value.deleting || tasks.actions.value[key].phase != ExportPhase.Idle) return
+        tasks.save(key, what, items(photoItems()).map { ExportJob(session, it) })
+    }
+
+    private fun share(what: ShareWhat) {
+        val session = row ?: return
+        if (state.value.deleting) return
+        val items: List<ExportItem> = when (what) {
+            ShareWhat.Strip -> listOf(ExportItem.Strip)
+            is ShareWhat.Photo -> photoItems().filter { it.shotIndex == what.shotIndex }
+            ShareWhat.AllPhotos -> photoItems().filter { it.kind == ExportItem.Photo.Kind.Cut }
+        }
+        tasks.share(items.map { ExportJob(session, it) })
     }
 
     private suspend fun load(session: SessionEntity) {
@@ -92,6 +145,8 @@ class DetailViewModel(
         val loaded = try {
             withContext(io) {
                 val shots = sessions.shots(sessionId)
+                this@DetailViewModel.shots = shots
+                row = session
                 val photos = shots.map { shot ->
                     val file = files.shot(sessionId, shot.shotIndex)
                     shot to DetailPhoto(
@@ -160,7 +215,7 @@ class DetailViewModel(
         fun factory(sessionId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) as BoothApp
-                DetailViewModel(sessionId, app.container.sessionRepository, app.container.frameRepository)
+                DetailViewModel(sessionId, app.container.sessionRepository, app.container.frameRepository, app.container.exports)
             }
         }
     }

@@ -8,6 +8,7 @@ lifecycle = "2.11.0"
 composeBom = "2026.09.00"
 navigation3 = "1.2.0"
 camerax = "1.6.2"
+exifinterface = "1.4.2"
 room = "2.8.5"
 coil = "3.6.3"
 graphicsShapes = "1.1.0"
@@ -42,6 +43,7 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 androidx-navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }
 androidx-navigation3-ui = { group = "androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
 
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }

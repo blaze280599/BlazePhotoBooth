@@ -21,14 +21,19 @@ import kotlinx.coroutines.flow.map
 private val Context.boothDataStore: DataStore<Preferences> by preferencesDataStore(name = "booth")
 
 /**
- * The Settings-sheet switches that M3 already obeys (README §4.8, §6.5, §9.5). Nothing writes them
- * yet: until M8 wires the sheet to [BoothPreferences.saveSettings], every switch reads its default.
+ * The Settings-sheet switches (README §4.8, §6.5, §9.5), written by the sheet since M6 ([BoothPreferences.saveSettings]).
+ * [saveMirrored] is the same stored value as Setup's *Mirror selfies* (`setup.mirror`, [BoothConfig.mirror]): one
+ * choice, two places to change it.
  */
 data class BoothSettings(
     val sounds: Boolean = true,
     val haptics: Boolean = true,
-    /** Front-camera screen flash (§9.5). On by default until M8 adds the switch (and maybe "auto"). */
+    /** Front-camera screen flash (§9.5). */
     val screenFlash: Boolean = true,
+    /** Selfies are saved mirrored, as the viewfinder showed them (§5.4). */
+    val saveMirrored: Boolean = true,
+    /** Print also saves the strip to Photos (§4.8). Off by default. */
+    val autoSaveStrip: Boolean = false,
 )
 
 /**
@@ -46,11 +51,16 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
         store.edit { writeConfig(it, config) }
     }
 
-    /** Sound, haptics and screen flash. Defaults until M8's Settings sheet writes them. */
+    /** The Settings sheet's switches (§4.8). */
     val settings: Flow<BoothSettings> = store.data.map(::readSettings)
 
     suspend fun saveSettings(settings: BoothSettings) {
         store.edit { writeSettings(it, settings) }
+    }
+
+    /** Changes the switches in one read-modify-write, so quick taps on different rows never undo each other. */
+    suspend fun updateSettings(change: (BoothSettings) -> BoothSettings) {
+        store.edit { writeSettings(it, change(readSettings(it))) }
     }
 
     companion object {
@@ -65,6 +75,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
         private val Sounds = booleanPreferencesKey("settings.sounds")
         private val HapticsKey = booleanPreferencesKey("settings.haptics")
         private val ScreenFlash = booleanPreferencesKey("settings.screen_flash")
+        private val AutoSave = booleanPreferencesKey("settings.auto_save_strip")
 
         fun readSettings(prefs: Preferences): BoothSettings {
             val d = BoothSettings()
@@ -72,6 +83,8 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
                 sounds = prefs[Sounds] ?: d.sounds,
                 haptics = prefs[HapticsKey] ?: d.haptics,
                 screenFlash = prefs[ScreenFlash] ?: d.screenFlash,
+                saveMirrored = prefs[Mirror] ?: d.saveMirrored,
+                autoSaveStrip = prefs[AutoSave] ?: d.autoSaveStrip,
             )
         }
 
@@ -79,6 +92,8 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
             prefs[Sounds] = settings.sounds
             prefs[HapticsKey] = settings.haptics
             prefs[ScreenFlash] = settings.screenFlash
+            prefs[Mirror] = settings.saveMirrored
+            prefs[AutoSave] = settings.autoSaveStrip
         }
 
         /**

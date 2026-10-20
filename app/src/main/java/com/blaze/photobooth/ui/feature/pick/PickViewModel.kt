@@ -353,7 +353,7 @@ class PickViewModel(
                 val app = checkNotNull(this[APPLICATION_KEY]) as BoothApp
                 val c = app.container
                 val source = if (editSessionId == null) {
-                    DraftPickSource(c.draftStore, c.sessionRepository, c.stripExporter)
+                    DraftPickSource(c.draftStore, c.sessionRepository, c.stripExporter, c.autoSaver::onPrinted)
                 } else {
                     SavedPickSource(editSessionId, c.sessionRepository, c.stripExporter)
                 }

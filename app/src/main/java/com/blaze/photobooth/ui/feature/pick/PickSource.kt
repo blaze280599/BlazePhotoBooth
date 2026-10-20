@@ -76,6 +76,8 @@ class DraftPickSource(
     private val draftStore: BoothDraftStore,
     private val sessions: SessionRepository,
     private val exporter: StripExporter,
+    /** Settings' auto-save (§4.8): told about every printed session. */
+    private val onPrinted: suspend (sessionId: String) -> Unit = {},
 ) : PickSource {
     override val editing = false
 
@@ -94,10 +96,12 @@ class DraftPickSource(
     override suspend fun commit(spec: StripSpec, result: PickResult): String {
         draftStore.updatePick(result.selection, result.caption, result.showDate)
         draftStore.updateConfig(result.config)
-        return sessions.finalizeDraft { _, dir ->
+        val id = sessions.finalizeDraft { _, dir ->
             val photos = result.selection.map { i -> i?.let { File(dir, SessionFileStore.shotName(it)) } }
             exporter.export(spec, photos, dir)
         }
+        onPrinted(id)
+        return id
     }
 
     override suspend fun restart(config: BoothConfig, totalShots: Int) {

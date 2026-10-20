@@ -17,6 +17,8 @@ import com.blaze.photobooth.ui.feature.placeholder.PlaceholderSample
 import com.blaze.photobooth.ui.feature.setup.SetupScreen
 import com.blaze.photobooth.ui.feature.setup.SetupTab
 import com.blaze.photobooth.ui.feature.settings.SettingsSheetContent
+import com.blaze.photobooth.ui.feature.settings.SettingsUiState
+import com.blaze.photobooth.data.export.StorageUsage
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.SheetShape
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -83,7 +85,10 @@ class BoothScreenshotTest {
                 modifier = Modifier.wrapContentSize(),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = SheetShape,
-            ) { SettingsSheetContent() }
+            ) {
+                // Real values as the phone shows them (§4.8): the switches as stored, the album counted.
+                SettingsSheetContent(SettingsUiState(storage = StorageUsage(strips = 23, bytes = 48_200_000)), onEvent = {})
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 package com.blaze.photobooth.ui.feature.album
 
 import androidx.compose.runtime.Immutable
+import com.blaze.photobooth.ui.feature.export.ExportActions
 
 /**
  * Everything the album shows (README §4.6). [entries] are the filtered strips under their month headers; [total]
@@ -16,6 +17,8 @@ data class AlbumUiState(
     val filter: AlbumFilter = AlbumFilter.All,
     val selection: Set<String> = emptySet(),
     val leaving: Set<String> = emptySet(),
+    /** The multi-select's *Save to Photos* (§4.6, §11.5). */
+    val actions: ExportActions = ExportActions(),
 ) {
     val selecting: Boolean get() = selection.isNotEmpty()
     val empty: Boolean get() = loaded && total == 0
@@ -32,6 +35,9 @@ sealed interface AlbumEvent {
     data class SelectFilter(val filter: AlbumFilter) : AlbumEvent
     data object ClearSelection : AlbumEvent
     data object DeleteSelected : AlbumEvent
+
+    /** Saves every selected strip to Photos, one after another (§4.6). */
+    data object SaveSelected : AlbumEvent
     data object Back : AlbumEvent
 
     /** The empty state's Start button. */

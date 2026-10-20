@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.blaze.photobooth.R
+import com.blaze.photobooth.ui.feature.export.ExportMessages
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -57,6 +58,8 @@ fun AlbumRoute(
         }
         if (result == SnackbarResult.ActionPerformed) viewModel.undo(batch) else viewModel.undoExpired(batch)
     }
+
+    ExportMessages(viewModel.messages, snackbar)
 
     // Only while selecting, so the predictive back animation (A1) still works the rest of the time.
     BackHandler(enabled = state.selecting) { viewModel.onEvent(AlbumEvent.ClearSelection) }

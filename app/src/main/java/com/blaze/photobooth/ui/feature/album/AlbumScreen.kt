@@ -91,12 +91,14 @@ import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.core.rememberBoothHaptics
 import com.blaze.photobooth.ui.components.BlobShape
 import com.blaze.photobooth.ui.components.FavoriteButton
-import com.blaze.photobooth.ui.components.SoonAction
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
 import com.blaze.photobooth.ui.components.StripImage
 import com.blaze.photobooth.ui.components.StripImageKeys
 import com.blaze.photobooth.ui.feature.setup.nameRes
+import com.blaze.photobooth.ui.feature.export.ExportAction
+import com.blaze.photobooth.ui.feature.export.ExportActions
+import com.blaze.photobooth.ui.feature.export.ExportKey
 import com.blaze.photobooth.ui.navigation.SharedKeys
 import com.blaze.photobooth.ui.navigation.sharedHero
 import com.blaze.photobooth.ui.theme.BoothMotion
@@ -106,7 +108,7 @@ import kotlin.math.min
 
 /**
  * The album (README §4.6): a two-column staggered grid of strips under sticky month headers, the filter chips,
- * ♡ on every card, long-press multi-select with Delete, and a cute empty state. Cards animate in, out and into
+ * ♡ on every card, long-press multi-select with Delete and Save to Photos, and a cute empty state. Cards animate in, out and into
  * place (§7 A11), and each card's picture is the A10 hero into Detail.
  */
 @Composable
@@ -153,7 +155,12 @@ fun AlbumScreen(
             exit = slideOutVertically(BoothMotion.gentle()) { it } + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            SelectionBar(count = state.selection.size, onDelete = { onEvent(AlbumEvent.DeleteSelected) })
+            SelectionBar(
+                count = state.selection.size,
+                actions = state.actions,
+                onSave = { onEvent(AlbumEvent.SaveSelected) },
+                onDelete = { onEvent(AlbumEvent.DeleteSelected) },
+            )
         }
 
         SnackbarHost(
@@ -161,10 +168,15 @@ fun AlbumScreen(
             Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
+                // While selecting, above the selection bar, so its ✓ stays in sight.
+                .padding(bottom = if (state.selecting) SelectionBarHeight else 0.dp)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         )
     }
 }
+
+/** How far the snackbar lifts while selecting: the bar is 112 dp (margins, padding, a 56 dp button), less the snackbar's own 12 dp. */
+private val SelectionBarHeight = 100.dp
 
 private val GridPadding = 16.dp
 private val GridTop = 4.dp
@@ -470,7 +482,7 @@ private fun AlbumCard(
 
 /** Multi-select's actions (§4.6) in the thumb zone. Saving to Photos is M6. */
 @Composable
-private fun SelectionBar(count: Int, onDelete: () -> Unit) {
+private fun SelectionBar(count: Int, actions: ExportActions, onSave: () -> Unit, onDelete: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -481,10 +493,18 @@ private fun SelectionBar(count: Int, onDelete: () -> Unit) {
             .fillMaxWidth(),
     ) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            SoonAction(Icons.Rounded.Download, R.string.album_save_selected)
+            ExportAction(
+                Icons.Rounded.Download,
+                R.string.album_save_selected,
+                actions[ExportKey.Selection],
+                enabled = !actions.busy,
+                onClick = onSave,
+                width = 150.dp,
+                progressLabel = R.string.album_save_progress,
+            )
             Spacer(Modifier.weight(1f))
             SquishyButton(
-                onClick = onDelete,
+                onClick = { if (!actions.busy) onDelete() },
                 modifier = Modifier.height(56.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp),
             ) {
