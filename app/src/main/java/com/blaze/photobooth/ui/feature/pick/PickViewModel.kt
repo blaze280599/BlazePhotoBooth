@@ -57,7 +57,11 @@ class PickViewModel(
     val effects: Flow<PickEffect> = effectChannel.receiveAsFlow()
 
     private var config = BoothConfig()
+    /** Every frame that can be drawn, hidden ones included (a saved strip's frame may be hidden now, §11.2). */
     private var options: List<FrameOption> = emptyList()
+
+    /** The frames she hasn't hidden: what the Frame tab offers. */
+    private var visible: List<FrameOption> = emptyList()
     private var totalShots = 0
     private var stampDate: LocalDate? = null
     private var previewJob: Job? = null
@@ -111,7 +115,8 @@ class PickViewModel(
     }
 
     private suspend fun load() {
-        options = frameRepository.options.first()
+        options = frameRepository.allOptions.first()
+        visible = frameRepository.options.first()
         source.session.collect { session ->
             if (session == null) {
                 if (!state.value.printing) state.update { it.copy(missing = true) }
@@ -261,8 +266,15 @@ class PickViewModel(
     private fun cutsFor(c: BoothConfig): Int =
         (options.firstOrNull { it.id == c.frameId } as? FrameOption.Artwork)?.frame?.slots?.size ?: c.layout.cuts
 
-    /** Frames the session can fill: no more slots than shots (a theme keeps the session's layout). */
-    private fun frameCards(shotCount: Int): List<FrameCardState> = options
+    /**
+     * Frames the session can fill: no more slots than shots (a theme keeps the session's layout). A hidden frame the
+     * session already uses stays on offer, first, so Edit can keep it.
+     */
+    private fun frameCards(shotCount: Int): List<FrameCardState> = visible
+        .let { list ->
+            val current = options.firstOrNull { it.id == config.frameId }
+            if (current != null && list.none { it.id == current.id }) listOf(current) + list else list
+        }
         .filter { o ->
             val cuts = when (o) {
                 is FrameOption.Artwork -> o.frame.slots.size

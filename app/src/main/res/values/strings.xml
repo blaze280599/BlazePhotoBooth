@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Blaze Booth</string>
 
     <!-- Home (§4.1) -->
@@ -23,7 +23,6 @@
     <!-- Settings sheet (§4.8). Live since M6, except Manage frames (M7). -->
     <string name="settings_title">Settings</string>
     <string name="settings_note">Make the booth yours ✿</string>
-    <string name="settings_soon">Soon</string>
     <string name="settings_sounds">Shutter &amp; countdown sounds</string>
     <string name="settings_haptics">Haptics</string>
     <string name="settings_screen_flash">Screen flash for selfies</string>
@@ -32,7 +31,8 @@
     <string name="settings_auto_save">Auto-save strip to Photos</string>
     <string name="settings_auto_save_summary">After printing</string>
     <string name="settings_manage_frames">Manage frames</string>
-    <string name="settings_manage_frames_summary">Rename, reorder or hide your frames</string>
+    <string name="settings_manage_frames_summary">Add, rename, reorder or hide your frames</string>
+    <string name="cd_settings_manage_frames">Open Manage frames</string>
     <string name="settings_storage">Storage used</string>
     <string name="settings_storage_measuring">Counting…</string>
     <plurals name="settings_storage_value">
@@ -222,8 +222,6 @@
     <!-- Placeholder screens (M1 shell). Each is replaced by its real screen in a later milestone. -->
     <string name="cd_back">Back</string>
     <string name="placeholder_coming">Coming in %1$s ✿</string>
-    <string name="placeholder_add_frame_title">Add a frame</string>
-    <string name="placeholder_add_frame_body">Bring in your own frame artwork, and the booth finds its photo windows.</string>
     <string name="placeholder_capture_title">Capture</string>
     <string name="placeholder_capture_body">The countdown, flash and cheesy poses happen here. Say kimchi!</string>
     <string name="placeholder_capture_next">Pick cuts</string>
@@ -311,4 +309,89 @@
     <string name="export_error">Couldn\'t save to Photos.</string>
     <string name="export_auto_save_failed">Couldn\'t auto-save the strip to Photos.</string>
     <string name="export_share_error">Couldn\'t open sharing.</string>
+
+    <!-- Add frame: the import flow (§4.9) -->
+    <string name="add_frame_finding">Finding the photo windows… ✨</string>
+    <string name="add_frame_title">Your new frame ✿</string>
+    <plurals name="add_frame_found">
+        <item quantity="one">Found %d photo window</item>
+        <item quantity="other">Found %d photo windows</item>
+    </plurals>
+    <plurals name="add_frame_count">
+        <item quantity="one">%d photo window</item>
+        <item quantity="other">%d photo windows</item>
+    </plurals>
+    <string name="add_frame_note">Your photos go under the artwork, just like in a real booth ♡</string>
+    <string name="add_frame_small">This picture is only %1$d px wide, so strips may look a little blurry. You can still use it ♡</string>
+    <string name="add_frame_adjust">Adjust</string>
+    <string name="add_frame_looks_right">Looks right ♡</string>
+    <string name="add_frame_name_label">Name your frame</string>
+    <string name="add_frame_save">Save ♡</string>
+    <string name="add_frame_saving">Saving your frame…</string>
+    <string name="add_frame_saved">Added to Her frames ♡</string>
+    <string name="add_frame_save_failed">Couldn\'t save the frame. Try again?</string>
+    <string name="add_frame_open_failed_title">Couldn\'t open that picture</string>
+    <string name="add_frame_open_failed_body">Try a PNG or JPG frame from your gallery.</string>
+    <string name="add_frame_pick_another">Pick another</string>
+    <string name="add_frame_pick">Choose your frame picture</string>
+    <string name="cd_add_frame_close">Cancel adding a frame</string>
+    <plurals name="cd_add_frame_preview">
+        <item quantity="one">Your frame with %d photo window</item>
+        <item quantity="other">Your frame with %d photo windows</item>
+    </plurals>
+    <string name="frames_default_name">Frame %1$d</string>
+
+    <!-- Slot editor (§4.9 step 4) -->
+    <string name="editor_title">Adjust windows</string>
+    <string name="editor_hint">Drag a window to move it, pull a corner to resize ♡</string>
+    <string name="editor_hint_none">We couldn\'t find the photo windows, so place them yourself ♡</string>
+    <string name="editor_add">Add window</string>
+    <string name="editor_done">Done</string>
+    <string name="editor_problem_none">Add at least one window for the photos</string>
+    <string name="editor_problem_overlap" tools:ignore="PluralsCandidate">Windows %1$d and %2$d overlap. Nudge them apart ♡</string>
+    <string name="editor_problem_too_many">A frame can have up to 8 windows</string>
+    <string name="editor_full">That\'s 8 windows, the most a frame can hold</string>
+    <string name="editor_no_room">No room for another window. Make some space first ♡</string>
+    <string name="cd_editor_cancel">Cancel adjusting</string>
+    <string name="cd_editor_window">Photo window %1$d</string>
+    <string name="cd_editor_window_selected">Photo window %1$d, selected. Drag to move, or use the actions to move or resize it</string>
+    <string name="editor_move_left">Move left</string>
+    <string name="editor_move_right">Move right</string>
+    <string name="editor_move_up">Move up</string>
+    <string name="editor_move_down">Move down</string>
+    <string name="editor_bigger">Make bigger</string>
+    <string name="editor_smaller">Make smaller</string>
+    <string name="editor_delete_window">Delete window</string>
+
+    <!-- Manage frames (§4.8) -->
+    <string name="manage_title">Manage frames</string>
+    <string name="manage_note">Your frames, your way ✿</string>
+    <string name="manage_bundled">Her frames ♡</string>
+    <string name="manage_bundled_note">These came with the booth: they can be hidden, not deleted.</string>
+    <string name="manage_imported">Added on this phone</string>
+    <string name="manage_imported_empty">Frames you add from your gallery show up here ♡</string>
+    <string name="manage_add">Add frame</string>
+    <plurals name="manage_windows">
+        <item quantity="one">%d photo window</item>
+        <item quantity="other">%d photo windows</item>
+    </plurals>
+    <string name="manage_hidden">Hidden</string>
+    <string name="cd_manage_hide">Hide %1$s</string>
+    <string name="cd_manage_show">Show %1$s</string>
+    <string name="cd_manage_up">Move %1$s up</string>
+    <string name="cd_manage_down">Move %1$s down</string>
+    <string name="cd_manage_rename">Rename %1$s</string>
+    <string name="cd_manage_delete">Delete %1$s</string>
+    <string name="manage_rename_title">Rename frame</string>
+    <string name="manage_rename_save">Save</string>
+    <string name="manage_cancel">Cancel</string>
+    <string name="manage_delete_title">Delete “%1$s”?</string>
+    <string name="manage_delete_body_unused">It will be removed from your booth.</string>
+    <plurals name="manage_delete_body_used">
+        <item quantity="one">It\'s in %d of your strips, so it\'ll be hidden instead, and that strip can still be edited.</item>
+        <item quantity="other">It\'s in %d of your strips, so it\'ll be hidden instead, and those strips can still be edited.</item>
+    </plurals>
+    <string name="manage_delete_confirm">Delete</string>
+    <string name="manage_deleted">%1$s deleted</string>
+    <string name="manage_kept_hidden">%1$s is in your strips, so it\'s tucked away instead</string>
 </resources>

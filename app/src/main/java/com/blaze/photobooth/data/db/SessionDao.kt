@@ -86,6 +86,16 @@ interface SessionDao {
     @Query("SELECT id FROM sessions WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff")
     suspend fun deletedBefore(cutoff: Long): List<String>
 
+    /**
+     * Every frame a saved session uses, soft-deleted ones included (Undo can bring them back). An imported frame in
+     * this list is hidden instead of deleted, and its files stay (§11.2).
+     */
+    @Query("SELECT DISTINCT frame_id FROM sessions")
+    suspend fun frameIdsInUse(): List<String>
+
+    @Query("SELECT COUNT(*) FROM sessions WHERE frame_id = :frameId")
+    suspend fun countUsing(frameId: String): Int
+
     /** Removes the row; its shots go with it (`ON DELETE CASCADE`). */
     @Query("DELETE FROM sessions WHERE id = :id")
     suspend fun delete(id: String)

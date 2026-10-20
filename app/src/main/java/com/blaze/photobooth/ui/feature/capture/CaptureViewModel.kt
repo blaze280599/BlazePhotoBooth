@@ -172,7 +172,8 @@ class CaptureViewModel(
         }
         val draft = existing ?: startFromPreferences()
         config = draft.config.toConfig()
-        val option = frameRepository.options.first().firstOrNull { it.id == config.frameId }
+        // Hidden frames too: she may have hidden this one in Manage frames since the draft began.
+        val option = frameRepository.find(config.frameId)
         val slots = (option as? FrameOption.Artwork)?.frame?.slots ?: LayoutGeometry.cells(config.layout)
         val p = CapturePlan(slots, bonusShots = (draft.totalShots - slots.size).coerceAtLeast(0))
         plan = p

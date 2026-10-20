@@ -14,6 +14,7 @@ import com.blaze.photobooth.data.db.ShotEntity
 import com.blaze.photobooth.data.export.ExportItem
 import com.blaze.photobooth.data.export.ExportJob
 import com.blaze.photobooth.data.export.ExportService
+import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.data.frames.FrameRepository
 import com.blaze.photobooth.model.FrameId
 import com.blaze.photobooth.model.FrameTheme
@@ -186,7 +187,7 @@ class DetailViewModel(
         return when (id.kind) {
             FrameId.Kind.Theme -> FrameTheme.fromId(id.localId)?.let { DetailFrame.Theme(it) } ?: DetailFrame.Unknown
             FrameId.Kind.Asset, FrameId.Kind.Custom ->
-                frames.bundledFrames().firstOrNull { it.id == id }?.let { DetailFrame.Named(it.name) } ?: DetailFrame.Unknown
+                (frames.find(id) as? FrameOption.Artwork)?.let { DetailFrame.Named(it.frame.name) } ?: DetailFrame.Unknown
             null -> DetailFrame.Unknown
         }
     }

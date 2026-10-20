@@ -16,6 +16,7 @@ fun HomeRoute(
     onOpenAlbum: () -> Unit,
     onOpenStrip: (sessionId: String) -> Unit,
     onContinueDraft: (complete: Boolean) -> Unit,
+    onManageFrames: () -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -36,6 +37,12 @@ fun HomeRoute(
     )
 
     if (showSettings) {
-        SettingsSheet(onDismiss = { showSettings = false })
+        SettingsSheet(
+            onDismiss = { showSettings = false },
+            onManageFrames = {
+                showSettings = false
+                onManageFrames()
+            },
+        )
     }
 }

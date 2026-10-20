@@ -13,6 +13,7 @@ import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.data.frames.FrameRepository
 import com.blaze.photobooth.data.prefs.BoothPreferences
 import com.blaze.photobooth.model.BoothConfig
+import com.blaze.photobooth.model.FrameId
 import com.blaze.photobooth.model.FrameSource
 import com.blaze.photobooth.model.FrameTheme
 import com.blaze.photobooth.model.StripSpec
@@ -35,8 +36,8 @@ import java.time.LocalDate
  * Setup (README §4.2). Restores the last [BoothConfig] from DataStore, keeps it in memory so every
  * choice updates the preview instantly, and saves each change straight away.
  *
- * If the saved frame no longer exists (say, an imported frame was deleted), or on the very first
- * launch, the first frame in the catalog is chosen: her first frame ♡.
+ * If the saved frame no longer exists or is hidden (say, an imported frame was deleted), or on the very first
+ * launch, the first frame in the catalog is chosen: her first frame ♡. A frame she has just imported is selected.
  */
 class SetupViewModel(
     private val frameRepository: FrameRepository,
@@ -54,6 +55,7 @@ class SetupViewModel(
 
     init {
         viewModelScope.launch {
+            var known: Set<FrameId>? = null
             frameRepository.options.collect { latest ->
                 options = latest
                 state.update { s ->
@@ -61,7 +63,11 @@ class SetupViewModel(
                 }
                 // First launch: Settings' "Save mirrored selfies" may already have been chosen (§4.8).
                 val mirror = preferences.settings.first().saveMirrored
-                config.value = resolve(config.value ?: preferences.config.first(), latest, mirror)
+                val resolved = resolve(config.value ?: preferences.config.first(), latest, mirror)
+                // Back from "+ Add frame" (§4.9): the frame she just imported is the one she wants.
+                val imported = known?.let { newlyImported(it, latest) }
+                config.value = if (imported != null) resolved.copy(frameId = imported).also { preferences.save(it) } else resolved
+                known = latest.map { it.id }.toSet()
                 latest.filterIsInstance<FrameOption.Artwork>().forEach { loadThumbnail(it) }
             }
         }
@@ -112,12 +118,6 @@ class SetupViewModel(
         }
     }
 
-    private fun resolve(saved: BoothConfig?, options: List<FrameOption>, mirror: Boolean): BoothConfig {
-        val first = options.firstOrNull()?.id ?: BoothConfig().frameId
-        val base = saved ?: BoothConfig(frameId = first, mirror = mirror)
-        return if (options.any { it.id == base.frameId }) base else base.copy(frameId = first)
-    }
-
     private suspend fun buildPreview(c: BoothConfig): StripSpec? {
         val frame = when (val option = options.firstOrNull { it.id == c.frameId }) {
             is FrameOption.Theme -> FrameSource.Theme(option.theme)
@@ -149,6 +149,20 @@ class SetupViewModel(
 
     companion object {
         private const val FilterSamplePx = 240
+
+        /**
+         * The config Setup opens with (§4.2): the saved one, or a first-launch default on her first frame. If the saved
+         * frame is gone or hidden (Manage frames, §4.8), the first frame in the carousel takes its place. Pure.
+         */
+        fun resolve(saved: BoothConfig?, options: List<FrameOption>, mirror: Boolean): BoothConfig {
+            val first = options.firstOrNull()?.id ?: BoothConfig().frameId
+            val base = saved ?: BoothConfig(frameId = first, mirror = mirror)
+            return if (options.any { it.id == base.frameId }) base else base.copy(frameId = first)
+        }
+
+        /** An imported frame in [latest] that wasn't in [known] (the newest, if several). Pure. */
+        fun newlyImported(known: Set<FrameId>, latest: List<FrameOption>): FrameId? =
+            latest.map { it.id }.lastOrNull { it.kind == FrameId.Kind.Custom && it !in known }
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

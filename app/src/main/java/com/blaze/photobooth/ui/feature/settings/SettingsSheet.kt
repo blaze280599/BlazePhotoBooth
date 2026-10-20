@@ -2,6 +2,7 @@ package com.blaze.photobooth.ui.feature.settings
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.FlashOn
@@ -50,16 +52,19 @@ import com.blaze.photobooth.R
 import com.blaze.photobooth.data.export.StorageStats
 import com.blaze.photobooth.data.export.StorageUsage
 import com.blaze.photobooth.ui.theme.BoothTheme
-import com.blaze.photobooth.ui.theme.PillShape
 import com.blaze.photobooth.ui.theme.SheetShape
 import com.blaze.photobooth.ui.theme.handwritten
 
 /**
  * Settings (README §4.8), a modal sheet over Home. Since M6 the switches are real (DataStore, §11.6) and *Storage
- * used* is counted each time the sheet opens. *Manage frames* arrives with M7.
+ * used* is counted each time the sheet opens. *Manage frames* opens its own screen (M7).
  */
 @Composable
-fun SettingsSheet(onDismiss: () -> Unit, viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)) {
+fun SettingsSheet(
+    onDismiss: () -> Unit,
+    onManageFrames: () -> Unit,
+    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.refreshStorage() }
     ModalBottomSheet(
@@ -68,12 +73,17 @@ fun SettingsSheet(onDismiss: () -> Unit, viewModel: SettingsViewModel = viewMode
         shape = SheetShape,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        SettingsSheetContent(state, viewModel::onEvent)
+        SettingsSheetContent(state, viewModel::onEvent, onManageFrames = onManageFrames)
     }
 }
 
 @Composable
-fun SettingsSheetContent(state: SettingsUiState, onEvent: (SettingsEvent) -> Unit, modifier: Modifier = Modifier) {
+fun SettingsSheetContent(
+    state: SettingsUiState,
+    onEvent: (SettingsEvent) -> Unit,
+    modifier: Modifier = Modifier,
+    onManageFrames: () -> Unit = {},
+) {
     val s = state.settings
     Column(
         modifier
@@ -109,8 +119,13 @@ fun SettingsSheetContent(state: SettingsUiState, onEvent: (SettingsEvent) -> Uni
         ToggleRow(Icons.Rounded.SaveAlt, R.string.settings_auto_save, R.string.settings_auto_save_summary, s.autoSaveStrip) {
             onEvent(SettingsEvent.SetAutoSave(it))
         }
-        SettingsRow(Icons.Rounded.Collections, R.string.settings_manage_frames, stringResource(R.string.settings_manage_frames_summary)) {
-            SoonPill()
+        SettingsRow(
+            Icons.Rounded.Collections,
+            R.string.settings_manage_frames,
+            stringResource(R.string.settings_manage_frames_summary),
+            modifier = Modifier.clickable(onClickLabel = stringResource(R.string.cd_settings_manage_frames), role = Role.Button, onClick = onManageFrames),
+        ) {
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         SettingsRow(Icons.Rounded.Storage, R.string.settings_storage, storageText(state.storage))
         SettingsRow(Icons.Rounded.Info, R.string.settings_about, stringResource(R.string.settings_about_summary))
@@ -166,18 +181,6 @@ private fun SettingsRow(
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = modifier.padding(horizontal = 8.dp),
     )
-}
-
-@Composable
-private fun SoonPill() {
-    Surface(shape = PillShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-        Text(
-            text = stringResource(R.string.settings_soon),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-        )
-    }
 }
 
 private val PreviewState = SettingsUiState(storage = StorageUsage(strips = 42, bytes = 310_000_000))

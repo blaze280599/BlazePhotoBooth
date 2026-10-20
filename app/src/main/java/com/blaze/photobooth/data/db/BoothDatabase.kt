@@ -17,6 +17,8 @@ import androidx.room.RoomDatabase
 abstract class BoothDatabase : RoomDatabase() {
     abstract fun sessions(): SessionDao
 
+    abstract fun frames(): FrameDao
+
     companion object {
         const val FileName = "booth.db"
 

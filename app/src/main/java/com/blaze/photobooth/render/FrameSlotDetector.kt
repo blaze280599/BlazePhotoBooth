@@ -8,7 +8,7 @@ import kotlin.math.sqrt
 
 /**
  * Finds the photo windows in frame artwork (README §5.5.2). Pure Kotlin over ARGB pixels, so it
- * runs in JVM unit tests. Used by the on-phone import flow (M7); bundled frames ship explicit slots.
+ * runs in JVM unit tests. Used by the on-phone import flow (§4.9, [FrameImport]); bundled frames ship explicit slots.
  *
  * Works on a copy box-downscaled to a long edge ≤ [WorkEdge] px, then scales rects back up.
  *  - **Mode A** (transparent PNG): windows are 4-connected regions with alpha < 32 that don't
@@ -58,14 +58,20 @@ object FrameSlotDetector {
     }
 
     /** Row-major order: tops within 5% of the height share a row, then left to right (§5.5.2 step 3). */
-    fun order(slots: List<SlotRect>, imageHeight: Int): List<SlotRect> {
-        val rows = mutableListOf<MutableList<SlotRect>>()
-        for (slot in slots.sortedBy { it.y }) {
+    fun order(slots: List<SlotRect>, imageHeight: Int): List<SlotRect> = order(slots, imageHeight) { it }
+
+    /** [order] for anything with a rect (the slot editor's windows keep their identity while they're renumbered). */
+    fun <T> order(items: List<T>, imageHeight: Int, rect: (T) -> SlotRect): List<T> {
+        val rows = mutableListOf<MutableList<T>>()
+        for (item in items.sortedBy { rect(it).y }) {
             val row = rows.lastOrNull()
-            if (row != null && slot.y - row.first().y < 0.05f * imageHeight) row += slot else rows += mutableListOf(slot)
+            if (row != null && rect(item).y - rect(row.first()).y < 0.05f * imageHeight) row += item else rows += mutableListOf(item)
         }
-        return rows.flatMap { row -> row.sortedBy { it.x } }
+        return rows.flatMap { row -> row.sortedBy { rect(it).x } }
     }
+
+    /** The working copy's box-downscale factor for a [width] × [height] image (1 up to [WorkEdge] px). */
+    fun workFactor(width: Int, height: Int): Int = max(1, ceil(max(width, height) / WorkEdge.toFloat()).toInt())
 
     private fun finish(rects: List<SlotRect>, width: Int, height: Int, mode: Mode, out: IntArray): Result {
         if (rects.size > MaxSlots) return Result.NotFound(Failure.TooManyWindows)
@@ -250,7 +256,7 @@ object FrameSlotDetector {
 
         companion object {
             fun downscale(src: IntArray, width: Int, height: Int): Work {
-                val k = max(1, ceil(max(width, height) / WorkEdge.toFloat()).toInt())
+                val k = workFactor(width, height)
                 if (k == 1) return Work(src, width, height, 1)
                 val w = ceil(width / k.toFloat()).toInt()
                 val h = ceil(height / k.toFloat()).toInt()

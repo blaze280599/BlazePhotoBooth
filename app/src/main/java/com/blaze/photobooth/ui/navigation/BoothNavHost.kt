@@ -21,15 +21,14 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
-import com.blaze.photobooth.R
 import com.blaze.photobooth.ui.feature.album.AlbumRoute
 import com.blaze.photobooth.ui.feature.capture.CaptureRoute
 import com.blaze.photobooth.ui.feature.detail.DetailRoute
+import com.blaze.photobooth.ui.feature.frames.AddFrameRoute
+import com.blaze.photobooth.ui.feature.frames.ManageFramesRoute
 import com.blaze.photobooth.ui.feature.home.HomeRoute
 import com.blaze.photobooth.ui.feature.pick.PickRoute
 import com.blaze.photobooth.ui.feature.result.ResultRoute
-import com.blaze.photobooth.ui.feature.placeholder.PlaceholderAction
-import com.blaze.photobooth.ui.feature.placeholder.PlaceholderScreen
 import com.blaze.photobooth.ui.feature.setup.SetupRoute
 import com.blaze.photobooth.ui.theme.BoothMotion
 import kotlin.math.roundToInt
@@ -44,8 +43,6 @@ val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?
  * The app's navigation (README §8.3): a Nav 3 back stack of typed keys shown by [NavDisplay] inside a
  * [SharedTransitionLayout]. Each entry gets its own saveable state and ViewModel store. Forward and back
  * use the §7 A1 slide-and-fade; predictive back scrubs the same pop animation.
- *
- * Until M7, Add frame is a [PlaceholderScreen].
  */
 @Composable
 fun BoothNavHost(modifier: Modifier = Modifier) {
@@ -71,6 +68,7 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                             onOpenAlbum = { backStack.go(Album) },
                             onOpenStrip = { backStack.go(Detail(it)) },
                             onContinueDraft = { complete -> backStack.go(if (complete) Pick() else Capture()) },
+                            onManageFrames = { backStack.go(ManageFrames) },
                         )
                     }
                     entry<Setup> {
@@ -80,11 +78,13 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                             onAddFrame = { backStack.go(AddFrame) },
                         )
                     }
-                    entry<AddFrame> {
-                        Placeholder(
-                            emoji = "🖼️", title = R.string.placeholder_add_frame_title, body = R.string.placeholder_add_frame_body,
-                            milestone = "M7", backStack = backStack,
-                        )
+                    entry<AddFrame> { key ->
+                        // Saved or not, the flow lands back where it started: Setup selects the new frame, Manage
+                        // frames lists it.
+                        AddFrameRoute(onExit = { backStack.leave(key) }, onDone = { backStack.leave(key) })
+                    }
+                    entry<ManageFrames> { key ->
+                        ManageFramesRoute(onBack = { backStack.leave(key) }, onAddFrame = { backStack.go(AddFrame) })
                     }
                     entry<Capture> { key ->
                         val retake = key.retakeIndex
@@ -141,25 +141,6 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
             )
         }
     }
-}
-
-@Composable
-private fun Placeholder(
-    emoji: String,
-    title: Int,
-    body: Int,
-    milestone: String,
-    backStack: NavBackStack<NavKey>,
-    vararg actions: PlaceholderAction,
-) {
-    PlaceholderScreen(
-        emoji = emoji,
-        title = title,
-        body = body,
-        milestone = milestone,
-        onBack = { backStack.removeLastOrNull() },
-        actions = actions.toList(),
-    )
 }
 
 /** Pops [key] if it's still on top (a double tap on ← must not pop the screen beneath too). */

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
@@ -63,7 +64,18 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
         store.edit { writeSettings(it, change(readSettings(it))) }
     }
 
+    /** Her bundled frames she hid in Manage frames (§4.8): `asset:<id>` ids. Bundled frames can only be hidden. */
+    val hiddenBundledFrames: Flow<Set<FrameId>> = store.data.map { prefs -> prefs[HiddenAssets].orEmpty().map(::FrameId).toSet() }
+
+    suspend fun setBundledFrameHidden(id: FrameId, hidden: Boolean) {
+        store.edit { prefs ->
+            val now = prefs[HiddenAssets].orEmpty()
+            prefs[HiddenAssets] = if (hidden) now + id.value else now - id.value
+        }
+    }
+
     companion object {
+        private val HiddenAssets = stringSetPreferencesKey("frames.hidden_assets")
         private val Layout = stringPreferencesKey("setup.layout")
         private val Frame = stringPreferencesKey("setup.frame")
         private val Filter = stringPreferencesKey("setup.filter")

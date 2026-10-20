@@ -56,8 +56,8 @@ data class ShotEntity(
 )
 
 /**
- * An image frame imported on the phone (§4.9, §11.2). Created in v1 so M7 needs no migration; nothing
- * reads or writes it until then. Bundled frames come from `frames.json`, not this table.
+ * An image frame imported on the phone (§4.9, §11.2). Created in v1, so M7 needed no migration. Bundled frames
+ * come from `frames.json`, not this table. [id] is a UUID and also the folder name under `files/frames/`.
  */
 @Entity(tableName = "frames")
 data class FrameEntity(
@@ -70,6 +70,16 @@ data class FrameEntity(
     @ColumnInfo(name = "text_area_json") val textAreaJson: String?,
     @ColumnInfo(name = "sort_order") val sortOrder: Int,
     @ColumnInfo(name = "created_at") val createdAt: Long,
-    /** Hidden from the picker but kept while any session uses it (§11.2). */
-    @ColumnInfo(defaultValue = "0") val hidden: Boolean = false,
-)
+    /**
+     * [HiddenShown] (0), [HiddenByHer] (1, she hid it in Manage frames) or [HiddenDeleted] (2, she deleted it but
+     * saved sessions still use it, so it's kept for Edit until they're gone, §11.2). The column is the v1
+     * `hidden INTEGER NOT NULL DEFAULT 0`; 0 and 1 read the same as the old boolean.
+     */
+    @ColumnInfo(defaultValue = "0") val hidden: Int = HiddenShown,
+) {
+    companion object {
+        const val HiddenShown = 0
+        const val HiddenByHer = 1
+        const val HiddenDeleted = 2
+    }
+}
