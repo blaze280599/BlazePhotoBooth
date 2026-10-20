@@ -58,6 +58,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -370,6 +371,11 @@ private fun MiniLayoutDiagram(layout: BoothLayout, modifier: Modifier = Modifier
 private fun FramePage(state: SetupUiState, onEvent: (SetupEvent) -> Unit) {
     val selectedIndex = state.frames.indexOfFirst { it.option.id == state.config.frameId }.coerceAtLeast(0)
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = (selectedIndex - 1).coerceAtLeast(0))
+    // A frame selected from elsewhere (one she just imported) slides into view if it's off-screen.
+    LaunchedEffect(state.config.frameId, state.frames.size) {
+        val visible = listState.layoutInfo.visibleItemsInfo.map { it.index }
+        if (selectedIndex !in visible) listState.animateScrollToItem((selectedIndex - 1).coerceAtLeast(0))
+    }
     LazyRow(
         state = listState,
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),

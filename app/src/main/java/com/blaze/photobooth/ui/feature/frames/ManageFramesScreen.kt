@@ -256,21 +256,25 @@ private fun FrameRow(row: ManagedFrameRow, first: Boolean, last: Boolean, onEven
                         )
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                    Text(
-                        pluralStringResource(R.plurals.manage_windows, row.windows, row.windows),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.onSurfaceVariant,
-                    )
-                    if (row.hidden) {
-                        Surface(shape = PillShape, color = colors.secondaryContainer, modifier = Modifier.padding(start = 6.dp)) {
-                            Text(
-                                stringResource(R.string.manage_hidden),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            )
-                        }
+                Text(
+                    pluralStringResource(R.plurals.manage_windows, row.windows, row.windows),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                // Its own line: imported rows have four buttons, which leaves too little width beside the count.
+                if (row.hidden) {
+                    Surface(shape = PillShape, color = colors.secondaryContainer, modifier = Modifier.padding(top = 4.dp)) {
+                        Text(
+                            stringResource(R.string.manage_hidden),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.onSecondaryContainer,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        )
                     }
                 }
             }

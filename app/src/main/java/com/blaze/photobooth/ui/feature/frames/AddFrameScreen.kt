@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -69,6 +70,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -269,7 +271,12 @@ private fun DrawScope.drawSparkle(center: Offset, radius: Float, color: Color, h
 @Composable
 private fun ConfirmContent(state: AddFrameUiState, onEvent: (AddFrameEvent) -> Unit) {
     val count = state.windows.size
-    Column(Modifier.fillMaxSize()) {
+    // The name panel rides above the keyboard (edge-to-edge: adjustResize alone doesn't move it).
+    Column(
+        Modifier
+            .fillMaxSize()
+            .imePadding(),
+    ) {
         FlowTopBar(stringResource(R.string.add_frame_title), stringResource(R.string.cd_add_frame_close), { onEvent(AddFrameEvent.Close) })
         Box(
             Modifier
@@ -412,6 +419,11 @@ private fun SmallWarning(width: Int) {
 /** Looks right / Adjust, or (after Looks right) the name and Save. */
 @Composable
 private fun ConfirmPanel(state: AddFrameUiState, onEvent: (AddFrameEvent) -> Unit) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val save = {
+        keyboard?.hide()
+        onEvent(AddFrameEvent.Save)
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = SheetShape,
@@ -462,12 +474,15 @@ private fun ConfirmPanel(state: AddFrameUiState, onEvent: (AddFrameEvent) -> Uni
                             null
                         },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { onEvent(AddFrameEvent.Save) }),
+                        keyboardActions = KeyboardActions(onDone = { save() }),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 12.dp)) {
                         SquishyButton(
-                            onClick = { onEvent(AddFrameEvent.CancelNaming) },
+                            onClick = {
+                                keyboard?.hide()
+                                onEvent(AddFrameEvent.CancelNaming)
+                            },
                             style = SquishyButtonStyle.Outlined,
                             modifier = Modifier
                                 .weight(1f)
@@ -476,7 +491,7 @@ private fun ConfirmPanel(state: AddFrameUiState, onEvent: (AddFrameEvent) -> Uni
                             Text(stringResource(R.string.manage_cancel), style = MaterialTheme.typography.titleMedium)
                         }
                         SquishyButton(
-                            onClick = { onEvent(AddFrameEvent.Save) },
+                            onClick = save,
                             enabled = state.step == AddFrameStep.Confirm,
                             modifier = Modifier
                                 .weight(1.4f)
