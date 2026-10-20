@@ -52,16 +52,37 @@ class BoothDraftStore(
         },
     )
 
-    /** Records a shot whose file is already in place at [shotFile]; a retake of the same index replaces it. */
+    /**
+     * Records a shot whose file is already in place at [shotFile]; a retake of the same index replaces it
+     * (Pick's "retake one", §4.4). The shot is stamped with the time, so a retake is never equal to the old shot.
+     */
     suspend fun addShot(shot: DraftShot): BoothDraft = checkNotNull(
         edit { d ->
             val draft = checkNotNull(d) { "No draft to add a shot to" }
-            draft.copy(shots = (draft.shots.filterNot { it.index == shot.index } + shot).sortedBy { it.index })
+            val stamped = shot.copy(takenAt = clock())
+            draft.copy(shots = (draft.shots.filterNot { it.index == shot.index } + stamped).sortedBy { it.index })
         },
     )
 
-    /** E.g. the camera was flipped mid-session. */
+    /** E.g. the camera was flipped mid-session, or Pick changed the frame or filter. */
     suspend fun updateConfig(config: BoothConfig): BoothDraft? = edit { d -> d?.copy(config = DraftConfig.from(config)) }
+
+    /** Pick's choices (§4.4): which shot sits in each slot, the caption and the date stamp. */
+    suspend fun updatePick(selection: List<Int?>, caption: String?, showDate: Boolean): BoothDraft? =
+        edit { d -> d?.copy(selection = selection, caption = caption, showDate = showDate) }
+
+    /**
+     * Print (§11.1): runs [finalize] with the `_draft` folder while nobody else can touch the draft.
+     * [finalize] moves the folder away (it becomes a saved session); when it returns, the draft is gone.
+     * If it throws, the draft is left exactly as it was.
+     */
+    suspend fun <T> handOff(finalize: suspend (draft: BoothDraft, dir: File) -> T): T = lock.withLock {
+        ensureLoaded()
+        val draft = checkNotNull(state.value) { "No draft to print" }
+        val result = finalize(draft, dir)
+        state.value = null
+        result
+    }
 
     /** Discard (Home's draft card, or leaving the booth): deletes `_draft/` and everything in it. */
     suspend fun discard() {

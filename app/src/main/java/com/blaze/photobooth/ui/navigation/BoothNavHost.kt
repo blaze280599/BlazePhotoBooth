@@ -24,7 +24,8 @@ import androidx.navigation3.ui.NavDisplay
 import com.blaze.photobooth.R
 import com.blaze.photobooth.ui.feature.capture.CaptureRoute
 import com.blaze.photobooth.ui.feature.home.HomeRoute
-import com.blaze.photobooth.ui.feature.pick.PickPlaceholderRoute
+import com.blaze.photobooth.ui.feature.pick.PickRoute
+import com.blaze.photobooth.ui.feature.result.ResultRoute
 import com.blaze.photobooth.ui.feature.placeholder.PlaceholderAction
 import com.blaze.photobooth.ui.feature.placeholder.PlaceholderScreen
 import com.blaze.photobooth.ui.feature.setup.SetupRoute
@@ -42,8 +43,8 @@ val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?
  * [SharedTransitionLayout]. Each entry gets its own saveable state and ViewModel store. Forward and back
  * use the §7 A1 slide-and-fade; predictive back scrubs the same pop animation.
  *
- * Until their milestones land, every screen except Home, Setup and Capture is a [PlaceholderScreen] that walks
- * the real flow. Pick shows the draft's shots in a grid until M4 builds it.
+ * Until their milestones land, Album, Detail, Add frame and Pick's edit mode are [PlaceholderScreen]s that walk
+ * the real flow.
  */
 @Composable
 fun BoothNavHost(modifier: Modifier = Modifier) {
@@ -68,13 +69,13 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                             onStart = { backStack.go(Setup) },
                             onOpenAlbum = { backStack.go(Album) },
                             onOpenStrip = { backStack.go(Detail(it)) },
-                            onContinueDraft = { complete -> backStack.go(if (complete) Pick() else Capture) },
+                            onContinueDraft = { complete -> backStack.go(if (complete) Pick() else Capture()) },
                         )
                     }
                     entry<Setup> {
                         SetupRoute(
                             onBack = { backStack.removeLastOrNull() },
-                            onStart = { backStack.go(Capture) },
+                            onStart = { backStack.go(Capture()) },
                             onAddFrame = { backStack.go(AddFrame) },
                         )
                     }
@@ -84,19 +85,30 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                             milestone = "M7", backStack = backStack,
                         )
                     }
-                    entry<Capture> {
+                    entry<Capture> { key ->
+                        val retake = key.retakeIndex
                         CaptureRoute(
+                            retakeIndex = retake,
                             onLeave = { backStack.removeLastOrNull() },
                             // Capture is done with once every shot is taken: back from Pick doesn't re-enter it.
+                            // A retake lands back on the Pick underneath it.
                             onFinished = {
                                 backStack.removeAll { it is Capture }
-                                backStack.go(Pick())
+                                if (retake == null) backStack.go(Pick())
                             },
                         )
                     }
                     entry<Pick> { key ->
                         if (key.editSessionId == null) {
-                            PickPlaceholderRoute(onBack = { backStack.removeLastOrNull() }, onPrint = { backStack.print(SampleSessionId) })
+                            PickRoute(
+                                onRetakeAll = {
+                                    backStack.removeAll { it is Pick }
+                                    backStack.go(Capture())
+                                },
+                                onRetake = { backStack.go(Capture(retakeIndex = it)) },
+                                onDiscarded = { backStack.home() },
+                                onPrinted = { backStack.print(it) },
+                            )
                         } else {
                             Placeholder(
                                 emoji = "✂️", title = R.string.placeholder_pick_title, body = R.string.placeholder_pick_edit_body,
@@ -105,12 +117,12 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                             )
                         }
                     }
-                    entry<Result> {
-                        Placeholder(
-                            emoji = "🎞️", title = R.string.placeholder_result_title, body = R.string.placeholder_result_body,
-                            milestone = "M4", backStack = backStack,
-                            PlaceholderAction(R.string.placeholder_result_again) { backStack.leaveResultFor(Setup) },
-                            PlaceholderAction(R.string.placeholder_result_album) { backStack.leaveResultFor(Album) },
+                    entry<Result> { key ->
+                        ResultRoute(
+                            sessionId = key.sessionId,
+                            onAgain = { backStack.leaveResultFor(Setup) },
+                            onAlbum = { backStack.leaveResultFor(Album) },
+                            onHome = { backStack.home() },
                         )
                     }
                     entry<Album> {
@@ -133,7 +145,7 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
     }
 }
 
-/** Stand-in session id the placeholders pass around until real sessions exist (M4). */
+/** Stand-in session id the Album placeholder opens until M5 lists real sessions. */
 private const val SampleSessionId = "sample"
 
 @Composable
@@ -158,6 +170,12 @@ private fun Placeholder(
 /** Push [key] unless it's already on top (a double tap shouldn't stack the same screen twice). */
 private fun NavBackStack<NavKey>.go(key: NavKey) {
     if (lastOrNull() != key) add(key)
+}
+
+/** Everything but Home goes: ✕ → "Discard session?", or Result's ← (§3). */
+private fun NavBackStack<NavKey>.home() {
+    removeAll { it !is Home }
+    if (isEmpty()) add(Home)
 }
 
 /** "Print ✿" (§8.3): drop the capture flow so back from Result goes Home, then show the result. */

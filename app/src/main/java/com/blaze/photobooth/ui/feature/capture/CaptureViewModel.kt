@@ -18,6 +18,7 @@ import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.data.frames.FrameRepository
 import com.blaze.photobooth.data.prefs.BoothPreferences
 import com.blaze.photobooth.data.prefs.BoothSettings
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.CapturePlan
 import com.blaze.photobooth.model.Lens
@@ -43,6 +44,9 @@ import kotlinx.coroutines.withContext
  * Capture (README §4.3). Picks up the draft Setup started (or one being continued from Home), runs the
  * automatic [CaptureSequencer], and turns each photo into a stored shot (§9.4) recorded in the draft
  * (§11.4). The route binds [camera] to the screen's lifecycle and plays the [effects].
+ *
+ * With a [retakeIndex] (Pick's "retake", §4.4) it shoots just that one shot again, replacing it in the draft,
+ * and leaving never discards the session.
  */
 class CaptureViewModel(
     private val draftStore: BoothDraftStore,
@@ -51,9 +55,10 @@ class CaptureViewModel(
     val camera: CameraController,
     private val processor: ShotProcessor,
     private val freeBytes: () -> Long,
+    private val retakeIndex: Int? = null,
 ) : ViewModel() {
 
-    private val state = MutableStateFlow(CaptureUiState())
+    private val state = MutableStateFlow(CaptureUiState(retakeIndex = retakeIndex))
     val uiState: StateFlow<CaptureUiState> = state.asStateFlow()
 
     private val effectChannel = Channel<CaptureEffect>(Channel.BUFFERED)
@@ -88,6 +93,7 @@ class CaptureViewModel(
             }
             CaptureEvent.DismissStorageWarning -> state.update { it.copy(showStorageWarning = false) }
             CaptureEvent.Flip -> flip()
+            CaptureEvent.ToggleBackFlash -> toggleBackFlash()
             CaptureEvent.RetryCamera -> state.update { it.copy(bindAttempt = it.bindAttempt + 1) }
             CaptureEvent.Close, CaptureEvent.RequestPermission, CaptureEvent.OpenSettings -> Unit // the route's
         }
@@ -106,9 +112,16 @@ class CaptureViewModel(
         sequencer?.onForeground()
     }
 
-    /** Leaving the booth throws the session away (after the route confirmed it when shots would be lost). */
+    /**
+     * Leaving the booth throws the session away (after the route confirmed it when shots would be lost).
+     * Leaving a retake just goes back to Pick: the old shot stays.
+     */
     fun leave(onDone: () -> Unit) {
         sequencer?.pause()
+        if (retakeIndex != null) {
+            onDone()
+            return
+        }
         viewModelScope.launch {
             draftStore.discard()
             onDone()
@@ -137,39 +150,63 @@ class CaptureViewModel(
         }
     }
 
+    /** §13: the back LED flash, Off ↔ Auto. Applied to the bound camera at once, and remembered like Setup's row. */
+    private fun toggleBackFlash() {
+        val flash = if (config.backFlash == BackFlash.Off) BackFlash.Auto else BackFlash.Off
+        config = config.copy(backFlash = flash)
+        state.update { it.copy(backFlash = flash) }
+        camera.setBackFlash(flash)
+        viewModelScope.launch {
+            draftStore.updateConfig(config)
+            preferences.config.first()?.let { preferences.save(it.copy(backFlash = flash)) }
+        }
+    }
+
     private suspend fun load() {
-        val draft = draftStore.current() ?: startFromPreferences()
+        val retake = retakeIndex
+        val existing = draftStore.current()
+        if (retake != null && existing == null) {
+            // Nothing to retake into (the draft was discarded elsewhere): just go back.
+            effectChannel.send(CaptureEffect.Finished)
+            return
+        }
+        val draft = existing ?: startFromPreferences()
         config = draft.config.toConfig()
         val option = frameRepository.options.first().firstOrNull { it.id == config.frameId }
         val slots = (option as? FrameOption.Artwork)?.frame?.slots ?: LayoutGeometry.cells(config.layout)
         val p = CapturePlan(slots, bonusShots = (draft.totalShots - slots.size).coerceAtLeast(0))
         plan = p
-        val thumbs = draft.shots.associate { it.index to loadThumbnail(it.index) }
+        // A retake shoots one shot: sequence position 0 is shot [retake].
+        val shotFor: (Int) -> Int = if (retake != null) { _ -> retake } else { i -> i }
+        val total = if (retake != null) 1 else p.totalShots
+        val taken = if (retake != null) 0 else draft.taken
+        val thumbs = if (retake != null) emptyMap() else draft.shots.associate { it.index to loadThumbnail(it.index) }
         state.update {
             it.copy(
                 loaded = true,
                 cuts = p.cuts,
                 timerSec = config.timerSec,
-                aspect = p.aspectFor(draft.taken),
+                aspect = p.aspectFor(shotFor(taken)),
                 frameColor = frameColor(option),
                 filter = config.filter,
                 lens = config.lens,
                 mirror = config.mirror,
-                tray = List(p.totalShots) { i -> TrayShot(p.aspectFor(i), thumbs[i]) },
+                backFlash = config.backFlash,
+                tray = List(total) { i -> TrayShot(p.aspectFor(shotFor(i)), thumbs[i]) },
                 lowStorage = freeBytes() < LowStorageBytes,
             )
         }
         val seq = CaptureSequencer(
             scope = viewModelScope,
             timerSec = config.timerSec,
-            total = p.totalShots,
-            taken = draft.taken,
-            capture = ::capture,
+            total = total,
+            taken = taken,
+            capture = { i -> capture(shotFor(i), trayIndex = i) },
             onTick = { effectChannel.trySend(CaptureEffect.Tick(it)) },
         )
         sequencer = seq
         seq.states.collect { s ->
-            state.update { it.copy(sequence = s, aspect = p.aspectFor(s.taken.coerceAtMost(p.totalShots - 1))) }
+            state.update { it.copy(sequence = s, aspect = p.aspectFor(shotFor(s.taken.coerceAtMost(total - 1)))) }
             if (s.phase == SequencePhase.Done) effectChannel.send(CaptureEffect.Finished)
         }
     }
@@ -184,7 +221,8 @@ class CaptureViewModel(
         return draftStore.begin(c, cuts + c.bonusShots)
     }
 
-    private suspend fun capture(index: Int): Boolean {
+    /** Takes shot [index] (the draft's numbering) into tray slot [trayIndex]. */
+    private suspend fun capture(index: Int, trayIndex: Int): Boolean {
         val p = plan ?: return false
         return try {
             check(camera.awaitReady()) { "Camera isn't ready" }
@@ -200,8 +238,8 @@ class CaptureViewModel(
             flightKey++
             state.update { s ->
                 s.copy(
-                    tray = s.tray.mapIndexed { i, t -> if (i == index) t.copy(thumbnail = thumb) else t },
-                    flight = ShotFlight(index, flightKey),
+                    tray = s.tray.mapIndexed { i, t -> if (i == trayIndex) t.copy(thumbnail = thumb) else t },
+                    flight = ShotFlight(trayIndex, flightKey),
                 )
             }
             true
@@ -260,7 +298,8 @@ class CaptureViewModel(
         /** Below this, warn before starting (§13). */
         const val LowStorageBytes = 50L * 1024 * 1024
 
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
+        /** [retakeIndex]: shoot only that shot again (Pick's retake, §4.4); null = the whole session. */
+        fun factory(retakeIndex: Int?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) as BoothApp
                 val c = app.container
@@ -271,6 +310,7 @@ class CaptureViewModel(
                     camera = CameraController(app),
                     processor = ShotProcessor(c.draftStore),
                     freeBytes = { freeBytes(app) },
+                    retakeIndex = retakeIndex,
                 )
             }
         }

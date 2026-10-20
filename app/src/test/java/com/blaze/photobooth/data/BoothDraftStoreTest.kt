@@ -37,7 +37,11 @@ class BoothDraftStoreTest {
     )
 
     private fun store(scope: kotlinx.coroutines.test.TestScope) =
-        BoothDraftStore(tmp.root, io = StandardTestDispatcher(scope.testScheduler), clock = { 1_760_000_000_000 })
+        BoothDraftStore(tmp.root, io = StandardTestDispatcher(scope.testScheduler), clock = { Now })
+
+    private companion object {
+        const val Now = 1_760_000_000_000L
+    }
 
     private fun BoothDraftStore.fakeShot(index: Int) = shotFile(index).apply { parentFile?.mkdirs(); writeText("jpeg $index") }
 
@@ -110,7 +114,37 @@ class BoothDraftStoreTest {
         s.fakeShot(0)
         s.addShot(DraftShot(0, 10, 10))
         val d = s.addShot(DraftShot(0, 20, 20))
-        assertEquals(listOf(DraftShot(0, 20, 20)), d.shots)
+        assertEquals(listOf(DraftShot(0, 20, 20, takenAt = Now)), d.shots)
+    }
+
+    @Test
+    fun pickChoicesSurviveARestart() = runTest {
+        val s = store(this)
+        s.begin(config, totalShots = 5)
+        s.updatePick(selection = listOf(4, null, 0), caption = "우리 ♡", showDate = false)
+        val reopened = store(this).current()
+        assertEquals(listOf(4, null, 0), reopened?.selection)
+        assertEquals("우리 ♡", reopened?.caption)
+        assertEquals(false, reopened?.showDate)
+    }
+
+    @Test
+    fun handOffClearsTheDraftOnlyWhenItSucceeds() = runTest {
+        val s = store(this)
+        s.begin(config, totalShots = 1)
+        try {
+            s.handOff<Unit> { _, _ -> error("insert failed") }
+        } catch (e: IllegalStateException) {
+            // expected
+        }
+        assertEquals(1, s.current()?.totalShots)
+        val moved = s.handOff { draft, dir ->
+            assertEquals(s.dir, dir)
+            dir.deleteRecursively()
+            draft.totalShots
+        }
+        assertEquals(1, moved)
+        assertNull(s.current())
     }
 
     @Test

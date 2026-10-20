@@ -39,6 +39,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cameraswitch
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FlashAuto
+import androidx.compose.material.icons.rounded.FlashOff
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -91,10 +93,13 @@ import androidx.compose.ui.util.lerp
 import com.blaze.photobooth.R
 import com.blaze.photobooth.camera.CameraStatus
 import com.blaze.photobooth.core.LocalReduceMotion
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.PhotoFilter
 import com.blaze.photobooth.render.Filters
 import com.blaze.photobooth.ui.components.CountdownRing
 import com.blaze.photobooth.ui.components.SquishyButton
+import com.blaze.photobooth.ui.navigation.SharedKeys
+import com.blaze.photobooth.ui.navigation.sharedContainer
 import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.handwritten
@@ -226,7 +231,12 @@ private fun CaptureTopBar(state: CaptureUiState, onEvent: (CaptureEvent) -> Unit
         }
         Spacer(Modifier.weight(1f))
         if (state.total > 0) {
-            val description = stringResource(R.string.cd_capture_counter, state.shotNumber, state.total)
+            val retake = state.retakeIndex
+            val description = if (retake != null) {
+                stringResource(R.string.capture_counter_retake, retake + 1)
+            } else {
+                stringResource(R.string.cd_capture_counter, state.shotNumber, state.total)
+            }
             Surface(
                 shape = CircleShape,
                 color = BoothTheme.extraColors.raised,
@@ -235,7 +245,9 @@ private fun CaptureTopBar(state: CaptureUiState, onEvent: (CaptureEvent) -> Unit
                 modifier = Modifier.clearAndSetSemantics { contentDescription = description },
             ) {
                 Text(
-                    text = if (state.isBonus) {
+                    text = if (retake != null) {
+                        stringResource(R.string.capture_counter_retake, retake + 1)
+                    } else if (state.isBonus) {
                         stringResource(R.string.capture_counter_bonus, state.shotNumber, state.total)
                     } else {
                         stringResource(R.string.capture_counter, state.shotNumber, state.total)
@@ -246,6 +258,19 @@ private fun CaptureTopBar(state: CaptureUiState, onEvent: (CaptureEvent) -> Unit
             }
         }
         Spacer(Modifier.weight(1f))
+        if (state.showFlashToggle) {
+            val auto = state.backFlash == BackFlash.Auto
+            FilledTonalIconButton(
+                onClick = { onEvent(CaptureEvent.ToggleBackFlash) },
+                colors = colors,
+                modifier = Modifier.padding(end = 8.dp),
+            ) {
+                Icon(
+                    if (auto) Icons.Rounded.FlashAuto else Icons.Rounded.FlashOff,
+                    contentDescription = stringResource(if (auto) R.string.cd_back_flash_auto else R.string.cd_back_flash_off),
+                )
+            }
+        }
         FilledTonalIconButton(onClick = { onEvent(CaptureEvent.Flip) }, enabled = state.canFlip, colors = colors) {
             Icon(Icons.Rounded.Cameraswitch, contentDescription = stringResource(R.string.cd_flip_camera))
         }
@@ -401,6 +426,8 @@ private fun ShotTray(state: CaptureUiState, hiddenIndex: Int?, onSlotPositioned:
         Modifier
             .fillMaxWidth()
             .height(TrayHeight)
+            // §7 A7: when the last shot lands, the tray grows into Pick's tray.
+            .sharedContainer(SharedKeys.ShotTray)
             .clearAndSetSemantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {

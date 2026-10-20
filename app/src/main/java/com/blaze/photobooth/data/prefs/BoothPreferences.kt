@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
 import com.blaze.photobooth.model.FrameId
@@ -60,6 +61,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
         private val Bonus = intPreferencesKey("setup.bonus_shots")
         private val LensKey = stringPreferencesKey("setup.lens")
         private val Mirror = booleanPreferencesKey("setup.mirror")
+        private val BackFlashKey = stringPreferencesKey("setup.back_flash")
         private val Sounds = booleanPreferencesKey("settings.sounds")
         private val HapticsKey = booleanPreferencesKey("settings.haptics")
         private val ScreenFlash = booleanPreferencesKey("settings.screen_flash")
@@ -95,6 +97,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
                 bonusShots = prefs[Bonus]?.takeIf { it in BoothConfig.BonusChoices } ?: defaults.bonusShots,
                 lens = Lens.fromId(prefs[LensKey]) ?: defaults.lens,
                 mirror = prefs[Mirror] ?: defaults.mirror,
+                backFlash = BackFlash.fromId(prefs[BackFlashKey]) ?: defaults.backFlash,
             )
         }
 
@@ -106,6 +109,7 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
             prefs[Bonus] = config.bonusShots
             prefs[LensKey] = config.lens.id
             prefs[Mirror] = config.mirror
+            prefs[BackFlashKey] = config.backFlash.id
         }
     }
 }

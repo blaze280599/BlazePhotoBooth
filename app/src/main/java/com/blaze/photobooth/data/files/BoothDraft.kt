@@ -1,5 +1,6 @@
 package com.blaze.photobooth.data.files
 
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
 import com.blaze.photobooth.model.FrameId
@@ -10,7 +11,7 @@ import kotlinx.serialization.Serializable
 /**
  * The in-progress booth session, mirrored to `files/sessions/_draft/draft.json` (README §11.1, §11.4).
  * Shot files are `shot_{index}.jpg` next to it; their paths are derived, never stored (§11.2).
- * [selection] and [caption] are Pick's (M4): slot → shot index.
+ * [selection], [caption] and [showDate] are Pick's (M4): [selection] maps slot → shot index (null = empty).
  */
 @Serializable
 data class BoothDraft(
@@ -21,6 +22,7 @@ data class BoothDraft(
     val shots: List<DraftShot> = emptyList(),
     val selection: List<Int?> = emptyList(),
     val caption: String? = null,
+    val showDate: Boolean = true,
 ) {
     val taken: Int get() = shots.size
     val complete: Boolean get() = shots.size >= totalShots
@@ -33,9 +35,12 @@ data class BoothDraft(
     }
 }
 
-/** One stored shot (§9.4): its sequence index and the stored JPEG's size. */
+/**
+ * One stored shot (§9.4): its sequence index and the stored JPEG's size. [takenAt] (epoch millis) is
+ * stamped by [BoothDraftStore.addShot], so a retake of the same index is a different value (Pick reloads it).
+ */
 @Serializable
-data class DraftShot(val index: Int, val width: Int, val height: Int)
+data class DraftShot(val index: Int, val width: Int, val height: Int, val takenAt: Long = 0)
 
 /**
  * [BoothConfig] as stable string ids (the same ones DataStore and the `sessions` table use),
@@ -50,6 +55,7 @@ data class DraftConfig(
     val bonusShots: Int,
     val lens: String,
     val mirror: Boolean,
+    val backFlash: String = BackFlash.Default.id,
 ) {
     /** Unknown values fall back to the defaults one field at a time, like the preferences do. */
     fun toConfig(): BoothConfig {
@@ -62,6 +68,7 @@ data class DraftConfig(
             bonusShots = bonusShots.takeIf { it in BoothConfig.BonusChoices } ?: d.bonusShots,
             lens = Lens.fromId(lens) ?: d.lens,
             mirror = mirror,
+            backFlash = BackFlash.fromId(backFlash) ?: d.backFlash,
         )
     }
 
@@ -74,6 +81,7 @@ data class DraftConfig(
             bonusShots = c.bonusShots,
             lens = c.lens.id,
             mirror = c.mirror,
+            backFlash = c.backFlash.id,
         )
     }
 }

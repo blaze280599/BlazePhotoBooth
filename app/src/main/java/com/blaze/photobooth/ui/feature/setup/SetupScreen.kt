@@ -3,7 +3,6 @@ package com.blaze.photobooth.ui.feature.setup
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -36,7 +35,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -64,7 +62,6 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -95,6 +92,7 @@ import com.blaze.photobooth.R
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.core.rememberBoothHaptics
 import com.blaze.photobooth.data.frames.FrameOption
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
 import com.blaze.photobooth.model.FrameSource
@@ -104,12 +102,12 @@ import com.blaze.photobooth.model.PhotoFilter
 import com.blaze.photobooth.model.StripSpec
 import com.blaze.photobooth.render.Filters
 import com.blaze.photobooth.render.LayoutGeometry
+import com.blaze.photobooth.ui.components.BoothTabRow
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.StripPreview
 import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.SheetShape
-import kotlinx.coroutines.launch
 
 /** The four sheet tabs, in pager order. */
 enum class SetupTab(val label: Int) {
@@ -159,7 +157,7 @@ fun SetupScreen(
             shadowElevation = 8.dp,
         ) {
             Column(Modifier.navigationBarsPadding().padding(top = 14.dp, bottom = 12.dp)) {
-                SetupTabRow(pagerState, onTick = haptics::segmentTick, modifier = Modifier.padding(horizontal = 20.dp))
+                BoothTabRow(SetupTab.entries.map { it.label }, pagerState, onTick = haptics::segmentTick, modifier = Modifier.padding(horizontal = 20.dp))
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier
@@ -253,44 +251,6 @@ private fun PreviewArea(state: SetupUiState, onBack: () -> Unit, modifier: Modif
                 .padding(top = 16.dp)
                 .semantics { heading() },
         )
-    }
-}
-
-// ---- Tabs ----
-
-@Composable
-private fun SetupTabRow(pagerState: PagerState, onTick: () -> Unit, modifier: Modifier = Modifier) {
-    val scope = rememberCoroutineScope()
-    Row(
-        modifier
-            .fillMaxWidth()
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .padding(4.dp)
-            .selectableGroup(),
-    ) {
-        SetupTab.entries.forEach { tab ->
-            val selected = pagerState.currentPage == tab.ordinal
-            val container by animateColorAsState(
-                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                label = "tab",
-            )
-            val content = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .clip(CircleShape)
-                    .background(container)
-                    .selectable(selected = selected, role = Role.Tab) {
-                        if (!selected) onTick()
-                        scope.launch { pagerState.animateScrollToPage(tab.ordinal, animationSpec = BoothMotion.gentle()) }
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(tab.label), style = MaterialTheme.typography.labelLarge, color = content, maxLines = 1)
-            }
-        }
     }
 }
 
@@ -454,7 +414,7 @@ private fun GroupLabel(text: String?) {
 }
 
 @Composable
-private fun FrameCard(card: FrameCardState, groupLabel: String?, selected: Boolean, onClick: () -> Unit) {
+internal fun FrameCard(card: FrameCardState, groupLabel: String?, selected: Boolean, onClick: () -> Unit) {
     val scale by animateFloatAsState(if (selected) 1.08f else 1f, BoothMotion.bouncy(), label = "card")
     val colors = MaterialTheme.colorScheme
     val swatch = remember(card) { swatchSpec(card.option, card.thumbnail) }
@@ -608,7 +568,7 @@ private fun FilterPage(state: SetupUiState, onEvent: (SetupEvent) -> Unit) {
 }
 
 @Composable
-private fun FilterThumb(filter: PhotoFilter, sample: Bitmap?, selected: Boolean, onClick: () -> Unit) {
+internal fun FilterThumb(filter: PhotoFilter, sample: Bitmap?, selected: Boolean, onClick: () -> Unit) {
     val scale by animateFloatAsState(if (selected) 1.08f else 1f, BoothMotion.bouncy(), label = "filter")
     val colors = MaterialTheme.colorScheme
     val image = remember(sample) { sample?.asImageBitmap() }
@@ -686,16 +646,21 @@ private fun OptionsPage(config: BoothConfig, onEvent: (SetupEvent) -> Unit) {
                 onSelect = { onEvent(SetupEvent.SetLens(it)) },
             )
         }
-        val front = config.lens == Lens.Front
-        OptionRow(
-            stringResource(R.string.setup_mirror),
-            stringResource(if (front) R.string.setup_mirror_hint else R.string.setup_mirror_back_hint),
-        ) {
-            Switch(
-                checked = config.mirror && front,
-                enabled = front,
-                onCheckedChange = { onEvent(SetupEvent.SetMirror(it)) },
-            )
+        // Mirroring only means something for selfies, and the LED flash only exists on the back: the row
+        // under Camera follows the lens (§13).
+        if (config.lens == Lens.Front) {
+            OptionRow(stringResource(R.string.setup_mirror), stringResource(R.string.setup_mirror_hint)) {
+                Switch(checked = config.mirror, onCheckedChange = { onEvent(SetupEvent.SetMirror(it)) })
+            }
+        } else {
+            OptionRow(stringResource(R.string.setup_back_flash), stringResource(R.string.setup_back_flash_hint)) {
+                Segmented(
+                    values = BackFlash.entries,
+                    selected = config.backFlash,
+                    label = { stringResource(if (it == BackFlash.Off) R.string.setup_back_flash_off else R.string.setup_back_flash_auto) },
+                    onSelect = { onEvent(SetupEvent.SetBackFlash(it)) },
+                )
+            }
         }
     }
 }

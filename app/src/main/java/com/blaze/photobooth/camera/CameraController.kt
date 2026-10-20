@@ -22,6 +22,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.lifecycle.awaitInstance
 import androidx.lifecycle.Observer
 import androidx.lifecycle.LifecycleOwner
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.Lens
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,7 +49,8 @@ sealed interface CameraStatus {
  * CameraX for the booth (README §9.1): Preview + ImageCapture bound to the Capture screen's lifecycle.
  * Both are 4:3 so the viewfinder and the photo see the same field of view; each is then centre-cropped
  * to the slot's aspect (§9.2, §9.4). Photos use `CAPTURE_MODE_MINIMIZE_LATENCY` at the highest
- * resolution ≤ 12 MP. The front camera uses a screen flash (§9.5); the back camera uses normal flash on auto.
+ * resolution ≤ 12 MP. The front camera uses a screen flash (§9.5); the back camera's LED flash is Off or
+ * Auto, as chosen ([BackFlash], §13).
  */
 class CameraController(private val context: Context) {
 
@@ -63,6 +65,7 @@ class CameraController(private val context: Context) {
     private var provider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
     private var camera: Camera? = null
+    private var boundLens: Lens? = null
     private var stateObserver: Observer<CameraState>? = null
 
     /** Capture callbacks land here, off the main thread. */
@@ -78,8 +81,8 @@ class CameraController(private val context: Context) {
     }
 
     /**
-     * (Re)binds the camera. [screenFlash] is used for the front camera only. [targetRotation] is the
-     * display's rotation (`Surface.ROTATION_*`), so photos come out upright (§13).
+     * (Re)binds the camera. [screenFlash] is used for the front camera only, [backFlash] for the back one.
+     * [targetRotation] is the display's rotation (`Surface.ROTATION_*`), so photos come out upright (§13).
      */
     @androidx.annotation.OptIn(ExperimentalMirrorMode::class)
     suspend fun bind(
@@ -87,6 +90,7 @@ class CameraController(private val context: Context) {
         lens: Lens,
         mirrorPreview: Boolean,
         screenFlash: ImageCapture.ScreenFlash?,
+        backFlash: BackFlash = BackFlash.Default,
         targetRotation: Int = Surface.ROTATION_0,
     ) {
         statusFlow.value = CameraStatus.Starting
@@ -109,31 +113,36 @@ class CameraController(private val context: Context) {
                 .setResolutionSelector(photoResolution)
                 .setTargetRotation(targetRotation)
                 .apply {
-                    if (lens == Lens.Front && screenFlash != null) {
-                        setScreenFlash(screenFlash)
-                        setFlashMode(ImageCapture.FLASH_MODE_SCREEN)
-                    } else if (lens == Lens.Back) {
-                        setFlashMode(ImageCapture.FLASH_MODE_AUTO)
-                    } else {
-                        setFlashMode(ImageCapture.FLASH_MODE_OFF)
-                    }
+                    val mode = flashMode(lens, backFlash, screenFlash != null)
+                    if (mode == ImageCapture.FLASH_MODE_SCREEN && screenFlash != null) setScreenFlash(screenFlash)
+                    setFlashMode(mode)
                 }
                 .build()
+            boundLens = lens
             val bound = p.bindToLifecycle(owner, selector, preview, capture)
             imageCapture = capture
             camera = bound
             watch(bound, owner)
-            Log.i(Tag, "Bound $lens camera, photo ${capture.resolutionInfo?.resolution}, screen flash ${capture.flashMode == ImageCapture.FLASH_MODE_SCREEN}")
+            Log.i(Tag, "Bound $lens camera, photo ${capture.resolutionInfo?.resolution}, flash mode ${capture.flashMode}")
         } catch (e: Exception) {
             Log.e(Tag, "Couldn't bind the $lens camera", e)
             statusFlow.value = CameraStatus.Failed(CameraStatus.Reason.Other)
         }
     }
 
+    /** The quick toggle in Capture's top bar: switches the back camera's LED flash without rebinding. */
+    fun setBackFlash(backFlash: BackFlash) {
+        val capture = imageCapture ?: return
+        if (boundLens != Lens.Back) return
+        capture.flashMode = flashMode(Lens.Back, backFlash, screenFlashAvailable = false)
+        Log.i(Tag, "Back flash $backFlash")
+    }
+
     fun unbind() {
         camera?.let { c -> stateObserver?.let { c.cameraInfo.cameraState.removeObserver(it) } }
         stateObserver = null
         camera = null
+        boundLens = null
         imageCapture?.screenFlash = null
         imageCapture = null
         provider?.unbindAll()
@@ -207,6 +216,18 @@ class CameraController(private val context: Context) {
             .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
             .setResolutionFilter(ResolutionFilter { sizes, _ -> atMost12Mp(sizes) })
             .build()
+
+        /**
+         * The `ImageCapture` flash mode for a lens (§9.5, §13): the front camera uses the screen flash when
+         * there is one; the back camera's LED is off unless the user picked Auto. Pure, so it's unit-tested.
+         */
+        fun flashMode(lens: Lens, backFlash: BackFlash, screenFlashAvailable: Boolean): Int = when (lens) {
+            Lens.Front -> if (screenFlashAvailable) ImageCapture.FLASH_MODE_SCREEN else ImageCapture.FLASH_MODE_OFF
+            Lens.Back -> when (backFlash) {
+                BackFlash.Off -> ImageCapture.FLASH_MODE_OFF
+                BackFlash.Auto -> ImageCapture.FLASH_MODE_AUTO
+            }
+        }
 
         /** The supported sizes ≤ 12 MP, largest first (all of them if none is that small). */
         fun atMost12Mp(sizes: List<Size>): List<Size> =

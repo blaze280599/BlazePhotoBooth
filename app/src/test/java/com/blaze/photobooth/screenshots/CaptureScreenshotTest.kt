@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.blaze.photobooth.camera.CameraStatus
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothLayout
 import com.blaze.photobooth.model.CapturePlan
 import com.blaze.photobooth.model.FrameId
@@ -183,5 +184,33 @@ class CaptureErrorScreenshotTest : CaptureShot() {
     fun error() = snap(
         "capture_error_dark",
         CaptureSamples.theme(SequencePhase.Idle, taken = 1).copy(camera = CameraStatus.Failed(CameraStatus.Reason.InUse)),
+    )
+}
+
+@RunWith(AndroidJUnit4::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = Pixel9Qualifiers)
+class CaptureBackFlashScreenshotTest : CaptureShot() {
+    /** Back camera: the flash toggle sits next to flip, Off by default (§13). */
+    @Test
+    fun backFlashOff() = snap("capture_back_flash_dark", CaptureSamples.theme(SequencePhase.Idle).copy(lens = Lens.Back))
+}
+
+@RunWith(AndroidJUnit4::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = Pixel9Qualifiers)
+class CaptureRetakeScreenshotTest : CaptureShot() {
+    /** Pick's "retake" (§4.4): one slot in the tray, the pill names the shot, back camera with flash on auto. */
+    @Test
+    fun retake() = snap(
+        "capture_retake_light",
+        CaptureSamples.theme(SequencePhase.Countdown(2)).copy(
+            retakeIndex = 2,
+            sequence = SequenceState(phase = SequencePhase.Countdown(2), taken = 0, total = 1),
+            tray = listOf(TrayShot(1.43f)),
+            lens = Lens.Back,
+            backFlash = BackFlash.Auto,
+        ),
+        dark = false,
     )
 }

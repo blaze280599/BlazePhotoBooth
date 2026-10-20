@@ -12,7 +12,8 @@ import kotlinx.serialization.Serializable
 /** The import flow for a new image frame (§4.9), opened from Setup's "+ Add frame" card. Built in M7. */
 @Serializable data object AddFrame : NavKey
 
-@Serializable data object Capture : NavKey
+/** The booth. With [retakeIndex], it shoots only that one shot again and returns to Pick (§4.4). */
+@Serializable data class Capture(val retakeIndex: Int? = null) : NavKey
 
 @Serializable data class Pick(val editSessionId: String? = null) : NavKey
 

@@ -5,7 +5,7 @@ A Korean self-photo-studio experience (think 인생네컷 *Life4Cuts*, Photoism,
 > **Built by an AI agent.** Claude (Claude Code) writes this app autonomously. This README is the **single source of truth** for what to build, how it looks and feels, how it's put together, and in what order. When a decision changes, update this file first (see the [Decision log](#18-decision-log)) and then change the code.
 
 **Target device:** Google **Pixel 9** (`tokay`, verified over adb), running **Android 17 (API 37.1)**, with a 6.3" 1080×2424 OLED at 60–120 Hz, 420 dpi density, 12 GB RAM, a 10.5 MP front and 50 MP rear camera. Portrait only.
-**Status:** M0 ✅ M1 ✅ M2 ✅ M3 ✅ (2026-10-20). Home, **Setup** and **Capture** run on the Pixel 9: a live strip preview, her 5 frames plus 9 themes, 6 filters, then the real camera with a cropped, filtered viewfinder, the bouncy countdown sequence, flash, sounds and haptics. Every shot lands upright in the draft, and an unfinished session can be continued from Home. Pick onwards are still placeholders (Pick shows the draft's shots). Next: M4. See [Milestones](#16-milestones).
+**Status:** M0 ✅ M1 ✅ M2 ✅ M3 ✅ M4 ✅ (2026-10-20). The whole booth runs on the Pixel 9: **Setup** (her 5 frames plus 9 themes, 6 filters), **Capture** (cropped, filtered viewfinder, bouncy countdown, flash, sounds, haptics; the back camera's LED flash is Off unless she picks Auto), **Pick** (choose cuts, retake one, frame, filter, caption, date) and **Print → Result** (the strip prints out with confetti and is saved in the album: Room plus `files/sessions/{id}/`). Album, Detail, saving to Photos and sharing are still to come. Next: M5. See [Milestones](#16-milestones).
 **Her frames:** ✅ 5 frames processed, AI-upscaled, text removed, bundled, and **approved by her** (2026-10-20) (§5.5.6).
 
 ---
@@ -108,7 +108,7 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
   - *Layout:* chips with mini diagrams (1×4, 2×2, 1×3, 2×3, Solo) and the cut count.
   - *Frame:* a horizontal carousel of swatch cards (each a tiny rendered frame). The selected card scales to 1.08× and gets a wobbling sticker ✓. **"Her frames ♡"** (custom artwork frames, §5.5) come **first**, with a heart badge, followed by the built-in themes. The carousel ends with a dashed **"+ Add frame"** card that opens the import flow (§4.9). Choosing an image frame sets the layout automatically (its slot count and shapes come from the artwork), so the *Layout* tab shows "Set by frame".
   - *Filter:* round thumbnails showing a sample photo through each filter, with the name below.
-  - *Options:* Timer (3/5/10 s segmented), Bonus shots (+0/+2/+4), Camera (Front/Back), Mirror selfies (switch).
+  - *Options:* Timer (3/5/10 s segmented), Bonus shots (+0/+2/+4), Camera (Front/Back), then Mirror selfies (switch) for the front camera, or **Flash** (Off / Auto, default Off, §13) for the back camera. The row under Camera follows the lens (since M4).
 - **CTA:** a sticky **Let's go!** button at the bottom. Its label shows the total shots, e.g. *"Let's go! · 6 shots"*.
 - **Persistence:** every choice is saved to DataStore immediately and restored next time. On the very first launch, or if the saved frame no longer exists (e.g. a deleted import), the first frame in the carousel is chosen: her first frame, *Lilac Pals*.
 - *As built in M2:* the back button and the title *"Make your strip"* sit over the preview; the sheet is a fixed-height `Surface` (not a draggable sheet), so the preview takes the remaining ~55% of the screen. Theme swatches are rendered on the classic strip; her frames' swatches are her `thumb.png` drawn through the renderer with placeholders. While an image frame is selected, the Layout tab shows a *"Set by frame ♡ · Lilac Pals has 3 photo windows"* card above the dimmed layout chips. Device tilt / parallax is **not built yet** (it was optional); it's an M8 polish item.
@@ -123,6 +123,7 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
 - **Cheerful prompts** rotate above the countdown: *"Say kimchi!"*, *"Heart hands! 🫶"*, *"Look surprised!"*, *"Peace ✌️"*, *"Cheek poke!"*.
 - **When all shots are done**, the view auto-advances to Pick with a container transform from the tray.
 - *As built in M3:* the viewfinder sits between the top bar and the tray on the app's gradient, with an 8 dp border in the frame's colour (a theme's top background colour; for her frames, the average of the artwork's solid pixels). It springs (`Gentle`) to the next slot's shape during the beat. The countdown ring and number are sized to fit the viewfinder (up to 160 sp, ignoring font scale). The prompt pill sits at the top of the viewfinder, and "Nice! ✿" pops in during the beat. Bonus shots show "5 / 6 ✦ bonus" in the pill. While idle or paused, a hint pill says what to do. The flying thumbnail is a 650 ms quadratic Bézier that lifts 120 dp above the start. The **A7 container transform to Pick is not built yet**: Pick is still a placeholder, so it moves to M4 with the real Pick. Pausing, backgrounding (§13) and failed shots all pause; resuming always starts a fresh countdown. ✕ (or back) with shots asks *"Leave the booth?"* and then discards the draft; with no shots it leaves silently. Low storage (< 50 MB allocatable) asks before the first shot. The camera permission (§12) and camera errors (§13) replace the viewfinder with a card. Sounds, haptics and the screen flash read `BoothSettings` (§11.6), which default to on until M8.
+- *Since M4:* on the back camera, a **flash toggle** (⚡ off / ⚡A auto) sits left of the flip button. It changes `ImageCapture.flashMode` at once (no rebind) and is remembered like Setup's Flash row. **Retake one:** `Capture(retakeIndex = k)` shoots only shot *k* (its slot's shape, one slot in the tray, the pill says "Retake · shot 3") and replaces it in the draft; ✕ or back returns to Pick without asking and keeps the old shot. The tray carries the A7 shared-bounds key, so when the last shot lands it grows into Pick's tray.
 
 ### 4.4 Pick ✂️ (review)
 - **Top:** the live strip preview, with slots numbered ①②③④. Empty slots show a dashed outline and a pulsing "+".
@@ -134,6 +135,15 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
 - **Auto-fill:** on arrival, shots 1…cuts are pre-placed in order. With no bonus shots this means Pick is effectively "review and confirm".
 - **Quick edits row:** frame swatch carousel, filter selector, caption text field (≤ 24 chars, Gaegu), date stamp toggle.
 - **CTA:** **Print ✿**, disabled with a gentle shake on tap until every slot is filled.
+- *As built in M4:* the strip preview fills the top; the sheet below (rounded 32 dp, like Setup's) has four tabs: **Cuts** (the tray, where Capture's tray lands, A7), **Frame**, **Filter** and **Text**, then Print ✿. A counter pill ("2 / 3") sits top-right and turns strawberry when full.
+  - Every slot has a number badge; empty slots are dashed with a pulsing "+". Placed shots wear the slot number in the tray and a strawberry border. Bonus shots wear "✦ bonus".
+  - Tapping a placed shot in the tray also takes it out (a toggle). With every slot full, tapping another shot plays `REJECT`; free a slot first.
+  - A8: the thumbnail flies from the tray into its slot on a small arc (spring, like A6), and the slot fills when it lands.
+  - **Peek** stays open after a long-press (it does not close on release) so its **Retake** and **Done** buttons can be tapped; tapping outside or back closes it.
+  - **Frame** offers her frames and the themes with no more slots than there are shots. A theme keeps the session's layout. Switching keeps the picks that fit and fills new empty slots with unused shots. **Filter** shows her own first cut through each filter. Frame and filter changes belong to this session only; Setup keeps its saved choices.
+  - **Text:** caption (≤ 24 chars, Gaegu, one line) and a date switch. Her frames have no `textArea`, so the tab shows *"Her frames carry their own artwork, so a caption and date don't print on them ♡"* instead.
+  - Print with empty slots: the button shakes, `REJECT` plays, and the empty slots blush pink. While printing, *"Printing your memories…"* covers the screen. If it fails, a snackbar says so and the draft is untouched.
+  - Back asks *"Retake everything?"* (Keep these / Retake all → a fresh draft, Capture from shot 1). ✕ asks *"Discard session?"* (→ Home).
 
 ### 4.5 Result 🎞️
 - **Printing reveal:** a stylised "printer slot" bar sits at the top. The strip slides out downward in stepped increments (like a real printer feeding paper), sways once on a pendulum spring, settles, and then **confetti** bursts (hearts, stars, pastel rectangles).
@@ -143,6 +153,7 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
   - **Save photos**: saves all chosen cuts to Photos as individual files.
   - **Share**: system share sheet with the strip.
   - **Album**, and **Again!** (back to Setup with the same settings).
+- *As built in M4:* the strip is the saved `strip.jpg` (decoded ≤ 900 px wide). It feeds out in 8 steps (230 ms each: a quick ease-out shove, then a pause), then sways on a loose spring (damping 0.22) from its top edge, while ≈ 80 confetti pieces (hearts, stars, strips, dots in the palette) burst for 2.5 s. Confetti has a closed-form motion (gravity plus linear drag), so any moment can be drawn and tested. The title changes from *"Printing your memories…"* to *"Here it is! ✿"*, and the *"Saved to your album ♡"* chip pops in. With reduce motion the strip just fades in. **Save strip, Save photos and Share are M6**: they show dimmed with a "Soon" tag. Album and Again! leave Result (it's removed from the stack); ← and system back go Home.
 
 ### 4.6 Album 📒
 - A **staggered grid** (2 columns) of strip thumbnails, grouped under sticky month headers ("October 2026").
@@ -486,7 +497,7 @@ Versions are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml) 
 ```
 The back stack is `rememberNavBackStack(Home)`. `NavDisplay` uses `rememberSaveableStateHolderNavEntryDecorator()` and `rememberViewModelStoreNavEntryDecorator()`, wrapped in a `SharedTransitionLayout`. "Print" navigates with `backStack.removeAll { it is Setup || it is Capture || it is Pick }`, then `add(Result(id))`.
 
-As built in M1 (`ui/navigation/BoothNavHost.kt`): Nav 3 1.2.0's `NavDisplay` takes the `SharedTransitionScope` directly (`sharedTransitionScope = this`), and the scope is also exposed as `LocalSharedTransitionScope` for the A10 hero. `transitionSpec`, `popTransitionSpec` and `predictivePopTransitionSpec` implement A1. Pushing a key that's already on top is ignored (no double-tap duplicates). Leaving Result (Again! / Album) removes Result from the stack, so back never returns to it. M2 adds `@Serializable data object AddFrame : NavKey` for the "+ Add frame" card (a placeholder until M7) and replaces the Setup placeholder with the real screen. M3 replaces the Capture placeholder with the real screen. When every shot is taken, Capture removes itself from the back stack and pushes `Pick()`, so back from Pick never re-enters a finished booth. Until M4, `Pick()` is a placeholder that shows the draft's shots in a 3-column grid; `Pick(editSessionId)` stays a plain placeholder. Home's *Continue* goes to Capture, or straight to Pick if every shot is already taken. Until their milestones, the remaining keys show a `PlaceholderScreen`: an emoji, "Coming in Mx ✿", a back button, and buttons that walk the real flow (Setup → Capture → Pick → Print → Result, Album → Detail → Edit → Pick).
+As built in M1 (`ui/navigation/BoothNavHost.kt`): Nav 3 1.2.0's `NavDisplay` takes the `SharedTransitionScope` directly (`sharedTransitionScope = this`), and the scope is also exposed as `LocalSharedTransitionScope` for the A10 hero. `transitionSpec`, `popTransitionSpec` and `predictivePopTransitionSpec` implement A1. Pushing a key that's already on top is ignored (no double-tap duplicates). Leaving Result (Again! / Album) removes Result from the stack, so back never returns to it. M2 adds `@Serializable data object AddFrame : NavKey` for the "+ Add frame" card (a placeholder until M7) and replaces the Setup placeholder with the real screen. M3 replaces the Capture placeholder with the real screen. When every shot is taken, Capture removes itself from the back stack and pushes `Pick()`, so back from Pick never re-enters a finished booth. Until M4, `Pick()` is a placeholder that shows the draft's shots in a 3-column grid; `Pick(editSessionId)` stays a plain placeholder. Home's *Continue* goes to Capture, or straight to Pick if every shot is already taken. M4 turns `Capture` into `data class Capture(val retakeIndex: Int? = null)`: Pick's retake pushes `Capture(k)`, which removes itself when done and lands back on Pick. Pick's "Retake all" replaces Pick with `Capture()`; "Discard" and Result's ← clear the stack down to Home. Pick (new session) and Result are real screens since M4. Until their milestones, the remaining keys show a `PlaceholderScreen`: an emoji, "Coming in Mx ✿", a back button, and buttons that walk the real flow (Setup → Capture → Pick → Print → Result, Album → Detail → Edit → Pick).
 
 ### 8.4 Domain model (in-memory)
 ```kotlin
@@ -539,6 +550,7 @@ Use `ImageCapture.FLASH_MODE_SCREEN` with a Compose implementation of `ImageCapt
 - Camera errors come from `cameraInfo.cameraState` (LiveData): `CAMERA_IN_USE` / `MAX_CAMERAS_IN_USE` → "another app might be using it", anything critical → a generic card. Both offer Retry, which binds again.
 - §9.4 is done in **one draw**: `ShotGeometry.plan` (pure, unit-tested) computes rotation, mirror, the centre crop and the output size, and one 2×3 affine. `ShotProcessor` draws `ImageProxy.toBitmap()` through it into the output bitmap with bitmap filtering, writes JPEG 95 to `shot_{i}.jpg.part`, fsyncs, then atomically renames it. A 320 px thumbnail is kept for the tray. Everything runs on `Dispatchers.Default` / `IO`, and every big bitmap is recycled.
 - The automatic sequence is `CaptureSequencer` (pure coroutines, tested with virtual time). A capture that has started always finishes, even if the user pauses during it.
+- *Since M4:* `CameraController.flashMode(lens, backFlash, screenFlash)` (pure, unit-tested) picks the mode: front → `FLASH_MODE_SCREEN` (or off without a screen flash); back → `FLASH_MODE_OFF` or `FLASH_MODE_AUTO` from `BoothConfig.backFlash`. `setBackFlash` changes it on the bound camera without rebinding.
 
 ---
 
@@ -548,6 +560,7 @@ Use `ImageCapture.FLASH_MODE_SCREEN` with a Compose implementation of `ImageCapt
 
 - **Export:** a `Bitmap.createBitmap(W, H, ARGB_8888)` gets drawn at 1:1, then is encoded as JPEG 95 (`strip.jpg`, about 1.5–3 MB). A 600 px-wide `thumb.jpg` is written for the album grid.
 - **Preview:** a Compose `Canvas` → `drawIntoCanvas { it.nativeCanvas.scale(viewW / W) ; draw(...) }` with *downsampled* bitmaps: frame artwork at ≤ 600 px **wide** (a 1:3 strip at 600 px tall would look soft on the phone), photos at ≤ 600 px on the long edge (`BitmapOps.PreviewMaxPx`). It's the same code, so it's pixel-identical in composition; `StripRenderScreenshotTest.previewMatchesExport` checks that a 1:1 export shrunk to preview size matches the preview render.
+- *As built in M4:* `render/StripExporter` draws the strip with the same renderer into a bitmap sized by `ExportSize` (pure, unit-tested: themes 1:1; image frames native, ×2 under 1200 px wide, capped at a 7200 px long edge). Each photo is decoded only as large as its slot needs. It writes `strip.jpg` (JPEG 95) and a 600 px-wide `thumb.jpg` (JPEG 90), each via a `.part` file and an atomic rename. `StripExporterTest` checks that a real export, shrunk, matches the preview render for a theme and for Lilac Pals.
 - *As built in M2:* `ui/components/StripPreview` is the composable; `StripRenderer.get(context)` is the app-wide instance (fonts loaded once). Each `draw` call makes its own `Paint`s, so a preview and an export can render at the same time. Empty cells in preview mode get a soft card with a little person silhouette and a heart.
 
 **Two frame kinds, one entry point.** `StripSpec.frame` is a sealed type: `FrameSource.Theme(FrameTheme)` (built-in, §5.2) or `FrameSource.Image(id, bitmap, slots, textArea)` (§5.5). Geometry comes from `LayoutGeometry` for themes and from the frame's slot list for images. Everything downstream (preview, export, Pick, Capture aspect) asks the spec for `slots` and `canvasSize`, and never asks which kind of frame it is.
@@ -582,6 +595,7 @@ files/
 ```
 Bundled frames live read-only in `assets/frames/` (§5.5.3).
 Finalising a session is an **atomic directory rename** of `_draft` → `{sessionId}`, followed by the DB insert in one transaction-like step. If the insert fails, the rename is reversed.
+*As built in M4:* `SessionRepository.finalizeDraft` holds the draft store's lock (`BoothDraftStore.handOff`) while the strip renders into `_draft/`, then renames the folder and inserts the session and **every** shot in one Room transaction. On failure the folder is renamed back. On success `draft.json` is deleted from the session folder. If the process dies between the rename and the insert, the folder still holds `draft.json`; `recoverOrphans()` (run once at app start) re-inserts such a session, and leaves folders without one alone.
 
 ### 11.2 Room schema (`booth.db`, version 1, schema exported to `app/schemas/`)
 ```
@@ -614,6 +628,8 @@ frames(                         -- imported image frames only (bundled ones come
   hidden INTEGER NOT NULL DEFAULT 0   -- hidden from the picker but kept while any session uses it
 )
 ```
+*As built in M4:* `data/db/` has `BoothDatabase` (v1, schema in `app/schemas/`), `SessionEntity`, `ShotEntity`, `FrameEntity` and `SessionDao` (album newest first without soft-deleted rows, count, one session, its shots, favourite, soft delete / restore, `deletedBefore`, delete with cascade). The **`frames` table is created in v1** even though only M7 uses it, so M7 needs no migration. `layout_id` is the layout's id for themes and `"image"` for image frames. Room's transaction makes the session and shot rows land together or not at all.
+
 **Frame deletion:** a frame used by saved sessions is **hidden**, not deleted, so those sessions can still be re-framed in Edit. Its files are removed once no session references it (checked at startup). Finished `strip.jpg` files never depend on the frame still existing.
 File paths are **derived** from `id` and `shot_index` and never stored, which avoids broken absolute paths after a restore.
 
@@ -623,6 +639,7 @@ App-private storage survives restarts and app updates. It's removed only on unin
 ### 11.4 Draft recovery
 `_draft/draft.json` is rewritten after every shot and selection change. On launch, if a draft exists with ≥ 1 shot, Home offers **Continue / Discard**.
 *As built in M3:* `data/files/BoothDraftStore` (one instance in `AppContainer`) writes `draft.json` atomically (temp file, then rename). The JSON holds `version`, `createdAt`, `config` (as the same string ids DataStore uses), `totalShots`, `shots` (`index`, `width`, `height`), `selection` and `caption` (the last two are M4's). **Setup's "Let's go!" starts a fresh draft**, wiping any old one, and Capture always works from the draft. A shot listed in the JSON whose file is missing is dropped on load. Flipping the camera mid-session updates the draft's lens and the saved Setup lens. Home's card reads the draft through `BoothHomeSource`. *Discard* deletes `_draft/`; *Continue* resumes Capture at the next shot.
+*Since M4:* Pick writes `selection`, `caption` and a new `showDate` (default true) on every change. Each `DraftShot` gets a `takenAt` stamp, so a retake of the same index is a new value and Pick reloads it. `config` gains `backFlash` (`"off"`/`"auto"`; older drafts read as off). Print hands the whole `_draft/` folder over to `SessionRepository` (§11.1), after which there is no draft.
 
 ### 11.5 Export to Photos (MediaStore)
 - `MediaStore.Images.Media.EXTERNAL_CONTENT_URI`, `RELATIVE_PATH = "Pictures/Blaze Booth"`, `IS_PENDING = 1` during write, then 0. **No storage permission needed** (API 29+, own files).
@@ -633,7 +650,7 @@ App-private storage survives restarts and app updates. It's removed only on unin
 ### 11.6 Preferences (DataStore)
 Last `BoothConfig` choices, sound, haptics, screen flash, save-mirrored, auto-save-to-Photos.
 *Since M3:* `BoothPreferences.settings` (`BoothSettings`: `settings.sounds`, `settings.haptics`, `settings.screen_flash`, all default **on**) is the seam for the Settings sheet. Capture already obeys it; M8 writes it with `saveSettings`.
-*Since M2:* `data/prefs/BoothPreferences` stores the `BoothConfig` in the `booth` DataStore under `setup.*` keys (layout, frame, filter, timer_sec, bonus_shots, lens, mirror). Unknown or out-of-range values fall back to defaults one field at a time; a saved frame id that no longer exists is resolved against the frame catalog by `SetupViewModel` (§4.2).
+*Since M2:* `data/prefs/BoothPreferences` stores the `BoothConfig` in the `booth` DataStore under `setup.*` keys (layout, frame, filter, timer_sec, bonus_shots, lens, mirror, and since M4 `back_flash`). Unknown or out-of-range values fall back to defaults one field at a time; a saved frame id that no longer exists is resolved against the frame catalog by `SetupViewModel` (§4.2).
 
 ---
 
@@ -656,7 +673,7 @@ No storage, location, microphone or network permissions. The app works **fully o
 | Process death mid-session | Draft recovery on next launch (§11.4). |
 | Low storage (< 50 MB free) | Warn before starting a session; on write failure, show a snackbar and keep the draft. |
 | Device rotated | Activity is portrait-locked; capture uses `targetRotation` from the display so photos are upright. |
-| Back camera chosen | No mirroring; screen flash disabled. *M3 used normal flash on auto; M4 adds a back-camera flash choice (Off / Auto, default **Off**), because the LED firing at close range hurt the human's eyes in testing.* |
+| Back camera chosen | No mirroring; screen flash disabled. The LED flash follows the **Flash** choice (Off / Auto, default **Off**): a Setup Options row and a toggle in Capture's top bar. *M3 used normal flash on auto, which fired at close range and hurt the human's eyes in testing.* |
 | Print with empty slots | Button shakes, `REJECT` haptic, empty slots pulse. |
 | Export fails (MediaStore) | Snackbar with Retry; the pending row is deleted. |
 | Very long caption or emoji | Max 24 chars, single line, auto-shrinks to fit the footer width. |
@@ -688,11 +705,11 @@ BlazePhotoBooth/
         │   └── java/com/blaze/photobooth/
         │       ├── BoothApp.kt               ← Application + AppContainer
         │       ├── MainActivity.kt           ← edge-to-edge, splash, BoothTheme { BoothNavHost() }
-        │       ├── model/                    ← BoothLayout, FrameTheme, PhotoFilter, BoothConfig, Shot, StripSpec
-        │       ├── render/                   ← StripRenderer, LayoutGeometry, FrameSlotDetector, StickerLayout, Stickers, Filters, BitmapOps, StripFonts, SampleArt
+        │       ├── model/                    ← BoothLayout, FrameTheme, PhotoFilter, BoothConfig (+ Lens, BackFlash), CapturePlan, SlotSelection, StripSpec
+        │       ├── render/                   ← StripRenderer, StripExporter, ExportSize, LayoutGeometry, FrameSlotDetector, StickerLayout, Stickers, Filters, BitmapOps, StripFonts, SampleArt
         │       ├── camera/                   ← CameraController, ComposeScreenFlash, ShotGeometry (pure), ShotProcessor
         │       ├── data/
-        │       │   ├── db/                   ← BoothDatabase, SessionDao, entities
+        │       │   ├── db/                   ← BoothDatabase, SessionDao, entities (Entities.kt)
         │       │   ├── files/                ← SessionFileStore, BoothDraftStore
         │       │   ├── frames/               ← FrameRepository (bundled frames.json + imported frames table)
         │       │   ├── export/               ← PhotoExporter (MediaStore), ShareHelper
@@ -702,13 +719,12 @@ BlazePhotoBooth/
         │       └── ui/
         │           ├── theme/                ← Color, Type, Shape, Motion, Theme
         │           ├── components/           ← SquishyButton, FloatingParticles, BlobShape, StripPreview,
-        │           │                            CountdownRing, Confetti, ShotThumb, SwatchCard, ...
-        │           ├── navigation/           ← NavKeys, BoothNavHost
+        │           │                            CountdownRing, Confetti, BoothTabRow, ...
+        │           ├── navigation/           ← NavKeys, BoothNavHost, SharedElements (A7 `sharedContainer`)
         │           └── feature/
         │               ├── home/  setup/  capture/  pick/  result/  album/  detail/  settings/  frames/
         │               │   (each: XxxRoute.kt, XxxScreen.kt, XxxViewModel.kt, XxxUiState.kt; home/ also HomeSource.kt)
         │               └── placeholder/     ← PlaceholderScreen for screens not built yet (M1 shell)
-        │                   (pick/PickPlaceholder shows the draft's shots until M4)
         └── test/
             ├── java/com/blaze/photobooth/  ← JVM unit tests + Roborazzi screenshot tests (screenshots/)
             └── screenshots/               ← recorded Roborazzi PNGs (§15.4)
@@ -760,7 +776,7 @@ Composables render to PNG on the JVM (Robolectric native graphics at Pixel 9 siz
 ./gradlew recordRoborazziDebug     # (re)write the PNGs after an intended UI change
 ./gradlew verifyRoborazziDebug     # fail if the UI drifted from the PNGs
 ```
-Plain `testDebugUnitTest` runs them too, without comparing. Since M2, `StripRenderScreenshotTest` also renders the strip renderer straight into bitmaps: `her_frame_<id>.png` (each of her frames with numbered sample photos, to compare with `photo-frames/_previews/<id>_photos.jpg`), `her_frames_all.png`, `her_frames_preview.png`, `strip_layouts_<theme>.png` (every layout), `strip_themes_preview.png` (all 9 themes as Setup shows them) and `strip_filters.png`; Setup is captured on every tab (`setup_*.png`, light and dark). Sample photos are generated pastel gradients with numbers, never real people. Since M3, Capture is captured with a fake gradient viewfinder (`CaptureScreenshotTest.kt`): `capture_idle_dark`, `capture_countdown_dark`, `capture_last_second_light`, `capture_flash_dark` (60 ms into the flash), `capture_tray_lilac_dark` (her 3-window frame, tray part-filled), `capture_permission_dark`, `capture_permission_blocked_light` and `capture_error_dark`. Each state has its own one-test class because of the `graphicsLayer` gotcha below. The Compose test clock pauses infinite animations, so each PNG is the first frame. Gotchas: unit tests need `--add-exports/--add-opens java.base/jdk.internal.access` (set in `app/build.gradle.kts`). A `graphicsLayer` (scale or rotation) renders **blank if another Compose test already ran in the same JVM**, so each test class gets its own JVM (`forkEvery = 1`) and such a sample must be its class's first test (or have a class of its own).
+Plain `testDebugUnitTest` runs them too, without comparing. Since M2, `StripRenderScreenshotTest` also renders the strip renderer straight into bitmaps: `her_frame_<id>.png` (each of her frames with numbered sample photos, to compare with `photo-frames/_previews/<id>_photos.jpg`), `her_frames_all.png`, `her_frames_preview.png`, `strip_layouts_<theme>.png` (every layout), `strip_themes_preview.png` (all 9 themes as Setup shows them) and `strip_filters.png`; Setup is captured on every tab (`setup_*.png`, light and dark). Sample photos are generated pastel gradients with numbers, never real people. Since M3, Capture is captured with a fake gradient viewfinder (`CaptureScreenshotTest.kt`): `capture_idle_dark`, `capture_countdown_dark`, `capture_last_second_light`, `capture_flash_dark` (60 ms into the flash), `capture_tray_lilac_dark` (her 3-window frame, tray part-filled), `capture_permission_dark`, `capture_permission_blocked_light` and `capture_error_dark`. Each state has its own one-test class because of the `graphicsLayer` gotcha below. Since M4: `capture_back_flash_dark`, `capture_retake_light`, `setup_options_back_dark`; Pick (`PickScreenshotTest.kt`, her Lilac Pals and Strawberry Milk with generated photos): `pick_empty_lilac_dark`, `pick_partial_theme_light`, `pick_full_lilac_dark`, `pick_full_theme_dark`, `pick_print_disabled_dark` (130 ms into the shake), `pick_text_theme_light`, `pick_text_her_frame_dark`, `pick_frame_tab_dark`, `pick_peek_dark`; Result (`ResultScreenshotTest.kt`): `result_mid_print_dark` (950 ms), `result_confetti_dark` (2.5 s) and `result_settled_light` (reduce motion). The Compose test clock pauses infinite animations, so each PNG is the first frame. Gotchas: unit tests need `--add-exports/--add-opens java.base/jdk.internal.access` (set in `app/build.gradle.kts`). A `graphicsLayer` (scale or rotation) renders **blank if another Compose test already ran in the same JVM**, so each test class gets its own JVM (`forkEvery = 1`) and such a sample must be its class's first test (or have a class of its own).
 
 ---
 
@@ -774,7 +790,7 @@ Each milestone ends with a **green build** (`assembleDebug testDebugUnitTest lin
 | **M1** ✅ | Design system & shell | `ui/theme` (colour, type, shape, motion) ✅, core components (SquishyButton, FloatingParticles, BlobShape) ✅, Nav 3 shell with all keys as placeholder screens ✅, Home screen complete ✅, settings sheet shell ✅, Roborazzi screenshot tests ✅ | Home looks and animates as in §4.1; navigation and predictive back work ✅ (2026-10-20) |
 | **M2** ✅ | Catalog & renderer | `model/` catalog (§5) ✅, `LayoutGeometry` and tests ✅, `FrameSource` (theme **and image** frames) ✅, `FrameSlotDetector` with synthetic-frame tests (§5.5.2) ✅, `StripRenderer` with stickers and fonts ✅, `StripPreview` composable ✅, `FrameRepository` (bundled `frames.json`) ✅, **Setup** screen with DataStore persistence ✅. Her 5 real bundled frames are the proof of the image-frame pipeline | Changing layout, frame or filter updates the live preview instantly; her frames preview with their windows filled; settings survive a restart ✅ (2026-10-20) |
 | **M3** ✅ | Capture | Camera permission flow ✅, CameraController ✅, filtered and cropped viewfinder ✅, countdown sequence ✅, flash ✅, sound ✅, haptics ✅, screen flash ✅, shot pipeline (§9.4) ✅, draft store and Home's draft card ✅ | A full sequence of N shots lands in `_draft/` upright and correctly cropped ✅ (2026-10-20: front camera on Cherry Blossom classic, 6 shots; back camera on her Lilac Pals, 5 shots, with force-stop and Continue) |
-| **M4** | Pick & Result | Pick interactions (§4.4), retake-one, caption and date, Print → render → finalise session (Room and files), Result printing reveal and confetti, the A7 tray → Pick container transform (moved from M3), and a **back-camera flash option** (Off / Auto, default Off; see §13) | The printed strip matches the preview exactly; the session appears in the DB |
+| **M4** ✅ | Pick & Result | Pick interactions (§4.4) ✅, retake-one ✅, caption and date ✅, Print → render → finalise session (Room and files) ✅, Result printing reveal and confetti ✅, the A7 tray → Pick container transform (moved from M3) ✅, and a **back-camera flash option** (Off / Auto, default Off; see §13) ✅ | The printed strip matches the preview exactly; the session appears in the DB ✅ (2026-10-20) |
 | **M5** | Album & Detail | Album grid with month headers, favourites, filters, multi-select; Detail with shared element, pager, soft delete with Undo, Edit (re-pick, re-frame) | Browse, favourite, delete/undo and edit all work after an app restart |
 | **M6** | Export & share | MediaStore exporter (strip, single cut, all cuts), share sheet, optional auto-save, storage stats | Files appear in Google Photos under *Blaze Booth*, with correct filter and orientation |
 | **M7** | Her frames ♡ | Import flow and slot editor (§4.9), `frames` table, Manage frames in Settings, frame hide/cleanup rules. Bundled frames are already processed (§5.5.6). New files in `photo-frames/` can arrive at any time: process them (§5.5.5) and show the human the previews for approval | Her frames appear first in Setup; a strip shot with one looks right on the phone; she can import a new frame on the phone |
@@ -870,6 +886,20 @@ Rules Claude follows while building this app:
 | 2026-10-20 | Camera errors are read from `cameraInfo.cameraState` (LiveData), not `addCameraStateListener` | The listener API is restricted to the CameraX library group (lint `RestrictedApi`). |
 | 2026-10-20 | Capture screenshot tests have one class per state | Robolectric draws `graphicsLayer` content blank after another Compose test in the same JVM (§15.4), and Capture uses layers for the shutter squish and the countdown pop. |
 | 2026-10-20 | M4 adds a back-camera flash option (Off / Auto), defaulting to **Off** | The human's request after the M3 phone test: the back LED flash on auto fired at close range and hurt their eyes. |
+| 2026-10-20 | The back flash is a `BoothConfig` field (`setup.back_flash`, also in the draft), not a `BoothSettings` switch | It's chosen in Setup next to the camera, and Capture's toggle changes it mid-session like the flip button does. |
+| 2026-10-20 | Setup's Options row under Camera follows the lens: Mirror selfies for Front, Flash for Back | Mirroring means nothing on the back camera and the LED doesn't exist on the front; a fifth row would need scrolling to be found. |
+| 2026-10-20 | Retake-one is `Capture(retakeIndex)` (a NavKey argument), and `DraftShot.takenAt` marks retaken shots | Pick stays underneath and reloads only the shot whose stamp changed; leaving a retake never discards the session. |
+| 2026-10-20 | Pick's quick edits live in tabs of the bottom sheet (Cuts · Frame · Filter · Text), next to the tray | It matches Setup's sheet, keeps the strip big, and leaves room for the shot grid on a 6.3" screen. |
+| 2026-10-20 | Long-press peek stays open until tapped away (not "release to dismiss") | The peek carries the Retake button, which can't be tapped if lifting the finger closes it. |
+| 2026-10-20 | With every slot full, tapping another shot plays `REJECT` instead of replacing a cut | Silent replacement would be confusing; tapping a filled slot (or a placed shot) frees it in one tap. |
+| 2026-10-20 | Pick's frame and filter changes apply to the session only; Setup's saved choices stay | Again! returns to the Setup she chose. Frames with more slots than shots aren't offered. |
+| 2026-10-20 | A8 and A7: A8 is a hand-made arc from the tray to the slot (bounds tracked with `onGloballyPositioned`, like A6); A7 uses Compose `sharedBounds` between Capture's tray and Pick's tray grid | Both ends of A8 are on the same screen, so a shared-element scope would add nothing; A7 crosses Nav 3 entries, where `sharedBounds` with `LocalNavAnimatedContentScope` is the native tool. With reduce motion, A7 is off and A8 is instant. |
+| 2026-10-20 | Room v1 already creates the `frames` table (M7) | §11.2 lists it in v1; creating it now avoids the app's first migration. |
+| 2026-10-20 | The strip is rendered into `_draft/` under the draft lock, then the folder is renamed and the rows inserted; a folder that lost its row is recovered from its `draft.json` at startup | Nothing can change the draft mid-print, a failed insert puts everything back, and a process death between rename and insert never loses a session. |
+| 2026-10-20 | `thumb.jpg` is JPEG 90 | It's only the album grid's 600 px preview; 90 keeps it small. The strip stays JPEG 95. |
+| 2026-10-20 | Result shows Save strip, Save photos and Share dimmed with a "Soon" tag until M6 | The toolbar's final shape is visible, nothing pretends to work, and MediaStore stays in M6. |
+| 2026-10-20 | Confetti uses a closed-form motion (gravity plus linear drag) in one Canvas | Any moment can be drawn without stepping a simulation, so it's deterministic for screenshot tests and allocation-free per frame. |
+| 2026-10-20 | Result relies on Nav 3's own back (only Home is beneath it) rather than a `BackHandler` | A `BackHandler` would disable the predictive-back animation (A1). |
 
 ---
 

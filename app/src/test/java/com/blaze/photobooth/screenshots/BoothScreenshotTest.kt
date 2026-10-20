@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.blaze.photobooth.model.Lens
 import com.blaze.photobooth.ui.components.BlobShapeSamples
 import com.blaze.photobooth.ui.feature.home.HomeScreen
 import com.blaze.photobooth.ui.feature.home.HomeUiState
@@ -128,6 +129,15 @@ class BoothScreenshotTest {
     fun setupOptionsDark() = snap("setup_options_dark") {
         BoothTheme(darkTheme = true, reduceMotion = true) {
             SetupScreen(SetupSamples.theme(), onEvent = {}, initialTab = SetupTab.Options)
+        }
+    }
+
+    /** Camera = Back swaps the mirror switch for the back-flash choice, Off by default (§13). */
+    @Test
+    fun setupOptionsBackDark() = snap("setup_options_back_dark") {
+        BoothTheme(darkTheme = true, reduceMotion = true) {
+            val state = SetupSamples.theme()
+            SetupScreen(state.copy(config = state.config.copy(lens = Lens.Back)), onEvent = {}, initialTab = SetupTab.Options)
         }
     }
 

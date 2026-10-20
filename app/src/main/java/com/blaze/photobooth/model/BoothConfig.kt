@@ -1,5 +1,22 @@
 package com.blaze.photobooth.model
 
+/**
+ * The back camera's LED flash (README §13): **Off** by default, because at booth distance it fired
+ * straight into the human's eyes. *Auto* lets the camera decide in the dark. The front camera ignores it
+ * (it has the screen flash, §9.5).
+ */
+enum class BackFlash(val id: String) {
+    Off("off"),
+    Auto("auto"),
+    ;
+
+    companion object {
+        val Default = Off
+
+        fun fromId(id: String?): BackFlash? = entries.firstOrNull { it.id == id }
+    }
+}
+
 enum class Lens(val id: String) {
     Front("front"),
     Back("back"),
@@ -22,6 +39,7 @@ data class BoothConfig(
     val bonusShots: Int = DefaultBonus,
     val lens: Lens = Lens.Front,
     val mirror: Boolean = true,
+    val backFlash: BackFlash = BackFlash.Default,
 ) {
     companion object {
         val TimerChoices = listOf(3, 5, 10)

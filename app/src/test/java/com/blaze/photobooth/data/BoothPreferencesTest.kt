@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.blaze.photobooth.data.prefs.BoothPreferences
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
 import com.blaze.photobooth.model.FrameId
@@ -25,6 +26,21 @@ class BoothPreferencesTest {
         assertEquals(true, c.mirror)
         assertEquals(BoothLayout.Classic, c.layout)
         assertEquals(PhotoFilter.Original, c.filter)
+        // §13: the back LED flash hurt at booth distance, so it starts off.
+        assertEquals(BackFlash.Off, c.backFlash)
+    }
+
+    @Test
+    fun backFlashIsOffUntilChosenAndUnknownValuesMeanOff() {
+        val prefs = mutablePreferencesOf()
+        BoothPreferences.writeConfig(prefs, BoothConfig(lens = Lens.Back))
+        assertEquals(BackFlash.Off, BoothPreferences.readConfig(prefs)?.backFlash)
+        prefs.remove(stringPreferencesKey("setup.back_flash")) // saved by M3, before the option existed
+        assertEquals(BackFlash.Off, BoothPreferences.readConfig(prefs)?.backFlash)
+        prefs[stringPreferencesKey("setup.back_flash")] = "torch"
+        assertEquals(BackFlash.Off, BoothPreferences.readConfig(prefs)?.backFlash)
+        prefs[stringPreferencesKey("setup.back_flash")] = "auto"
+        assertEquals(BackFlash.Auto, BoothPreferences.readConfig(prefs)?.backFlash)
     }
 
     @Test
@@ -42,6 +58,7 @@ class BoothPreferencesTest {
             bonusShots = 4,
             lens = Lens.Back,
             mirror = false,
+            backFlash = BackFlash.Auto,
         )
         val prefs = mutablePreferencesOf()
         BoothPreferences.writeConfig(prefs, config)

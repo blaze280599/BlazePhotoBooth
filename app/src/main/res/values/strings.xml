@@ -69,7 +69,10 @@
     <string name="setup_camera_back">Back</string>
     <string name="setup_mirror">Mirror selfies</string>
     <string name="setup_mirror_hint">Saved just like you see it</string>
-    <string name="setup_mirror_back_hint">Only for the front camera</string>
+    <string name="setup_back_flash">Flash</string>
+    <string name="setup_back_flash_hint">Off is gentlest on the eyes</string>
+    <string name="setup_back_flash_off">Off</string>
+    <string name="setup_back_flash_auto">Auto</string>
     <string name="cd_strip_preview">Strip preview: %1$s, %2$s</string>
     <string name="cd_her_frame">One of her frames</string>
     <string name="cd_selected">Selected</string>
@@ -103,6 +106,9 @@
     <string name="cd_capture_counter">Shot %1$d of %2$d</string>
     <string name="cd_close_booth">Leave the booth</string>
     <string name="cd_flip_camera">Switch camera</string>
+    <string name="capture_counter_retake">Retake · shot %d</string>
+    <string name="cd_back_flash_off">Flash off. Tap for auto flash</string>
+    <string name="cd_back_flash_auto">Flash on auto. Tap to turn it off</string>
     <string name="cd_shutter_start">Start taking photos</string>
     <string name="cd_shutter_pause">Pause</string>
     <string name="cd_shutter_resume">Keep going</string>
@@ -144,11 +150,68 @@
     <string name="capture_error_other">It didn\'t start this time. Let\'s give it another go.</string>
     <string name="capture_error_retry">Retry</string>
 
-    <!-- Pick placeholder (M3 shows the shots; M4 builds Pick) -->
-    <plurals name="pick_placeholder_shots">
-        <item quantity="one">%d shot in the draft</item>
-        <item quantity="other">%d shots in the draft</item>
+    <!-- Pick (§4.4) -->
+    <string name="pick_title">Pick your favourite cuts</string>
+    <string name="pick_counter_short">%1$d / %2$d</string>
+    <plurals name="pick_counter">
+        <item quantity="one">%1$d of %2$d slot filled</item>
+        <item quantity="other">%1$d of %2$d slots filled</item>
     </plurals>
+    <string name="pick_tab_cuts">Cuts</string>
+    <string name="pick_tab_frame">Frame</string>
+    <string name="pick_tab_filter">Filter</string>
+    <string name="pick_tab_text">Text</string>
+    <string name="pick_tray_hint">Tap a shot to place it · hold to peek</string>
+    <string name="pick_bonus">✦ bonus</string>
+    <string name="pick_print">Print ✿</string>
+    <string name="pick_print_waiting">Fill every slot to print</string>
+    <string name="pick_printing">Printing your memories…</string>
+    <string name="pick_print_failed">Couldn\'t print this time. Your photos are safe; try again.</string>
+    <string name="pick_caption">Caption</string>
+    <string name="pick_caption_placeholder">우리 둘 ♡ best day</string>
+    <string name="pick_caption_count">%1$d / %2$d</string>
+    <string name="pick_date">Date stamp</string>
+    <string name="pick_date_hint">Prints today\'s date under the caption</string>
+    <string name="pick_text_her_frame">Her frames carry their own artwork, so a caption and date don\'t print on them ♡</string>
+    <string name="pick_peek_title">Shot %d</string>
+    <string name="pick_peek_title_bonus">Shot %d ✦ bonus</string>
+    <string name="pick_peek_title_placed">Shot %1$d · in slot %2$d</string>
+    <string name="pick_retake">Retake</string>
+    <string name="pick_peek_done">Done</string>
+    <string name="pick_retake_all_title">Retake everything?</string>
+    <string name="pick_retake_all_body">These shots will be cleared and the booth starts again from shot 1.</string>
+    <string name="pick_retake_all_stay">Keep these</string>
+    <string name="pick_retake_all_go">Retake all</string>
+    <string name="pick_discard_title">Discard session?</string>
+    <string name="pick_discard_body">All of these shots will be deleted.</string>
+    <string name="pick_discard_stay">Keep</string>
+    <string name="pick_discard_go">Discard</string>
+    <string name="cd_pick_discard">Discard session</string>
+    <plurals name="cd_pick_strip">
+        <item quantity="one">Your strip: %1$d of %2$d slot filled</item>
+        <item quantity="other">Your strip: %1$d of %2$d slots filled</item>
+    </plurals>
+    <string name="cd_pick_slot_empty">Slot %d, empty</string>
+    <string name="cd_pick_slot_filled">Slot %d. Tap to empty it</string>
+    <string name="cd_pick_shot">Shot %d. Tap to place it</string>
+    <string name="cd_pick_shot_placed">Shot %1$d, in slot %2$d. Tap to take it out</string>
+    <string name="cd_pick_peek">Peek</string>
+    <string name="cd_pick_peek_close">Close</string>
+
+    <!-- Result (§4.5) -->
+    <string name="result_title_printing">Printing your memories…</string>
+    <string name="result_title_done">Here it is! ✿</string>
+    <string name="result_saved">Saved to your album ♡</string>
+    <string name="result_save_strip">Save strip</string>
+    <string name="result_save_photos">Save photos</string>
+    <string name="result_share">Share</string>
+    <string name="result_soon">Soon</string>
+    <string name="result_album">Album</string>
+    <string name="result_again">Again!</string>
+    <string name="cd_result_home">Home</string>
+    <string name="cd_result_strip">Your printed strip</string>
+    <string name="cd_result_soon">%s, coming soon</string>
+
     <string name="cd_shot">Shot %d</string>
 
     <!-- Placeholder screens (M1 shell). Each is replaced by its real screen in a later milestone. -->
@@ -161,12 +224,7 @@
     <string name="placeholder_capture_next">Pick cuts</string>
     <string name="placeholder_pick_title">Pick</string>
     <string name="placeholder_pick_edit_body">Re-pick cuts or change the frame of a saved strip.</string>
-    <string name="placeholder_pick_next">Print ✿</string>
     <string name="placeholder_pick_edit_next">Save changes</string>
-    <string name="placeholder_result_title">Result</string>
-    <string name="placeholder_result_body">Your strip prints out here, with confetti!</string>
-    <string name="placeholder_result_album">Album</string>
-    <string name="placeholder_result_again">Again!</string>
     <string name="placeholder_album_title">My Album</string>
     <string name="placeholder_album_body">Every strip you make lives here forever.</string>
     <string name="placeholder_album_next">Open a strip</string>

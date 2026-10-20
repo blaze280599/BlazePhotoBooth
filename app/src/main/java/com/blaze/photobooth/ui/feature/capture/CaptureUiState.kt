@@ -3,6 +3,7 @@ package com.blaze.photobooth.ui.feature.capture
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import com.blaze.photobooth.camera.CameraStatus
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.Lens
 import com.blaze.photobooth.model.PhotoFilter
@@ -10,6 +11,7 @@ import com.blaze.photobooth.model.PhotoFilter
 /**
  * Everything Capture shows (README §4.3). [tray] has one entry per planned shot; [aspect] is the
  * current shot's slot aspect (width ÷ height), which the viewfinder is cropped to.
+ * With [retakeIndex] set, Capture shoots only that one shot again (Pick's "retake", §4.4): the tray has one slot.
  */
 @Immutable
 data class CaptureUiState(
@@ -23,6 +25,9 @@ data class CaptureUiState(
     val filter: PhotoFilter = PhotoFilter.Original,
     val lens: Lens = Lens.Front,
     val mirror: Boolean = true,
+    /** The back camera's LED flash (§13), toggled from the top bar while the back camera is on. */
+    val backFlash: BackFlash = BackFlash.Default,
+    val retakeIndex: Int? = null,
     val lenses: Set<Lens> = emptySet(),
     val camera: CameraStatus = CameraStatus.Starting,
     val tray: List<TrayShot> = emptyList(),
@@ -45,7 +50,10 @@ data class CaptureUiState(
     val shotNumber: Int get() = (taken + 1).coerceAtMost(total.coerceAtLeast(1))
 
     /** Bonus shots (beyond the strip's cuts) get a little ✦ in the pill. */
-    val isBonus: Boolean get() = taken in cuts until total
+    val isBonus: Boolean get() = retakeIndex == null && taken in cuts until total
+
+    /** The flash toggle shows only for the back camera (the front one has the screen flash, §9.5). */
+    val showFlashToggle: Boolean get() = lens == Lens.Back && loaded
 
     /** Flip only while nothing is counting down or capturing (§4.3), and only if there is another camera. */
     val canFlip: Boolean get() = !running && phase != SequencePhase.Done && lenses.size > 1
@@ -72,6 +80,9 @@ sealed interface CaptureEvent {
     /** The big button: start, pause or resume. */
     data object Shutter : CaptureEvent
     data object Flip : CaptureEvent
+
+    /** The top bar's back-flash toggle: Off ↔ Auto (§13). */
+    data object ToggleBackFlash : CaptureEvent
     data object RetryCamera : CaptureEvent
     data object StartAnyway : CaptureEvent
     data object DismissStorageWarning : CaptureEvent

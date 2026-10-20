@@ -43,12 +43,14 @@ import kotlinx.coroutines.launch
 /**
  * Stateful Capture: the camera permission (§12), binding the camera to this screen's lifecycle,
  * the screen flash, sounds and haptics (§6.5), pausing in the background (§13) and leaving.
+ * [retakeIndex] shoots only that shot again (Pick's retake, §4.4); leaving it never asks or discards.
  */
 @Composable
 fun CaptureRoute(
     onLeave: () -> Unit,
     onFinished: () -> Unit,
-    viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.Factory),
+    retakeIndex: Int? = null,
+    viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.factory(retakeIndex)),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -80,6 +82,7 @@ fun CaptureRoute(
                 lens = state.lens,
                 mirrorPreview = state.mirror,
                 screenFlash = screenFlash.takeIf { settings.screenFlash },
+                backFlash = state.backFlash,
                 targetRotation = view.display?.rotation ?: Surface.ROTATION_0,
             )
         }
@@ -115,15 +118,16 @@ fun CaptureRoute(
     }
 
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
+    val retake = state.retakeIndex != null
     val close = {
-        if (state.taken > 0) {
+        if (state.taken > 0 && !retake) {
             viewModel.pause()
             confirmLeave = true
         } else {
             viewModel.leave(onLeave)
         }
     }
-    BackHandler(enabled = state.taken > 0, onBack = close)
+    BackHandler(enabled = state.taken > 0 || retake, onBack = close)
 
     CaptureScreen(
         state = state,

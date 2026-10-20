@@ -3,6 +3,7 @@ package com.blaze.photobooth.ui.feature.setup
 import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 import com.blaze.photobooth.data.frames.FrameOption
+import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
 import com.blaze.photobooth.model.FrameId
@@ -50,6 +51,7 @@ sealed interface SetupEvent {
     data class SetBonus(val shots: Int) : SetupEvent
     data class SetLens(val lens: Lens) : SetupEvent
     data class SetMirror(val mirror: Boolean) : SetupEvent
+    data class SetBackFlash(val flash: BackFlash) : SetupEvent
     data object AddFrame : SetupEvent
     data object Start : SetupEvent
     data object Back : SetupEvent
