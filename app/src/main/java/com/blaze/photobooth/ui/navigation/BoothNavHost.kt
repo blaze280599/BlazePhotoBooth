@@ -22,7 +22,9 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import com.blaze.photobooth.R
+import com.blaze.photobooth.ui.feature.album.AlbumRoute
 import com.blaze.photobooth.ui.feature.capture.CaptureRoute
+import com.blaze.photobooth.ui.feature.detail.DetailRoute
 import com.blaze.photobooth.ui.feature.home.HomeRoute
 import com.blaze.photobooth.ui.feature.pick.PickRoute
 import com.blaze.photobooth.ui.feature.result.ResultRoute
@@ -43,8 +45,7 @@ val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?
  * [SharedTransitionLayout]. Each entry gets its own saveable state and ViewModel store. Forward and back
  * use the §7 A1 slide-and-fade; predictive back scrubs the same pop animation.
  *
- * Until their milestones land, Album, Detail, Add frame and Pick's edit mode are [PlaceholderScreen]s that walk
- * the real flow.
+ * Until M7, Add frame is a [PlaceholderScreen].
  */
 @Composable
 fun BoothNavHost(modifier: Modifier = Modifier) {
@@ -99,23 +100,19 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                         )
                     }
                     entry<Pick> { key ->
-                        if (key.editSessionId == null) {
-                            PickRoute(
-                                onRetakeAll = {
-                                    backStack.removeAll { it is Pick }
-                                    backStack.go(Capture())
-                                },
-                                onRetake = { backStack.go(Capture(retakeIndex = it)) },
-                                onDiscarded = { backStack.home() },
-                                onPrinted = { backStack.print(it) },
-                            )
-                        } else {
-                            Placeholder(
-                                emoji = "✂️", title = R.string.placeholder_pick_title, body = R.string.placeholder_pick_edit_body,
-                                milestone = "M4", backStack = backStack,
-                                PlaceholderAction(R.string.placeholder_pick_edit_next) { backStack.removeLastOrNull() },
-                            )
-                        }
+                        PickRoute(
+                            onRetakeAll = {
+                                backStack.removeAll { it is Pick }
+                                backStack.go(Capture())
+                            },
+                            onRetake = { backStack.go(Capture(retakeIndex = it)) },
+                            onDiscarded = { backStack.home() },
+                            onPrinted = { backStack.print(it) },
+                            // Edit (§4.7): Save and Cancel both land back on Detail, which shows the strip as it now is.
+                            editSessionId = key.editSessionId,
+                            onEditDone = { backStack.leave(key) },
+                            onCancelEdit = { backStack.leave(key) },
+                        )
                     }
                     entry<Result> { key ->
                         ResultRoute(
@@ -125,18 +122,19 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                             onHome = { backStack.home() },
                         )
                     }
-                    entry<Album> {
-                        Placeholder(
-                            emoji = "📒", title = R.string.placeholder_album_title, body = R.string.placeholder_album_body,
-                            milestone = "M5", backStack = backStack,
-                            PlaceholderAction(R.string.placeholder_album_next) { backStack.go(Detail(SampleSessionId)) },
+                    entry<Album> { key ->
+                        AlbumRoute(
+                            onBack = { backStack.leave(key) },
+                            onOpen = { backStack.go(Detail(it)) },
+                            onStart = { backStack.go(Setup) },
                         )
                     }
                     entry<Detail> { key ->
-                        Placeholder(
-                            emoji = "🖼️", title = R.string.placeholder_detail_title, body = R.string.placeholder_detail_body,
-                            milestone = "M5", backStack = backStack,
-                            PlaceholderAction(R.string.placeholder_detail_next) { backStack.go(Pick(editSessionId = key.sessionId)) },
+                        DetailRoute(
+                            sessionId = key.sessionId,
+                            onBack = { backStack.leave(key) },
+                            onEdit = { backStack.go(Pick(editSessionId = it)) },
+                            onDeleted = { backStack.deleted(it) },
                         )
                     }
                 },
@@ -144,9 +142,6 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
         }
     }
 }
-
-/** Stand-in session id the Album placeholder opens until M5 lists real sessions. */
-private const val SampleSessionId = "sample"
 
 @Composable
 private fun Placeholder(
@@ -165,6 +160,20 @@ private fun Placeholder(
         onBack = { backStack.removeLastOrNull() },
         actions = actions.toList(),
     )
+}
+
+/** Pops [key] if it's still on top (a double tap on ← must not pop the screen beneath too). */
+private fun NavBackStack<NavKey>.leave(key: NavKey) {
+    if (lastOrNull() == key) removeAt(lastIndex)
+}
+
+/**
+ * A strip was deleted in Detail (§4.7): Detail (and any Edit of it) goes, and Album shows the Undo snackbar. If Detail
+ * was opened from Home's peek, Album takes its place.
+ */
+private fun NavBackStack<NavKey>.deleted(sessionId: String) {
+    removeAll { (it is Detail && it.sessionId == sessionId) || (it is Pick && it.editSessionId == sessionId) }
+    if (lastOrNull() !is Album) go(Album)
 }
 
 /** Push [key] unless it's already on top (a double tap shouldn't stack the same screen twice). */

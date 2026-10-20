@@ -58,13 +58,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.blaze.photobooth.R
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.ui.components.BlobLogo
 import com.blaze.photobooth.ui.components.FloatingParticles
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
+import com.blaze.photobooth.ui.components.StripImage
+import com.blaze.photobooth.ui.components.StripImageKeys
 import com.blaze.photobooth.ui.components.boothParticleColors
 import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
@@ -275,10 +276,12 @@ private fun StripPeek(strip: RecentStrip, onClick: () -> Unit, modifier: Modifie
                 }
             }
             if (strip.thumbnail != null) {
-                AsyncImage(
-                    model = strip.thumbnail,
+                StripImage(
+                    file = strip.thumbnail,
+                    memoryKey = StripImageKeys.thumb(strip.sessionId, strip.version),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

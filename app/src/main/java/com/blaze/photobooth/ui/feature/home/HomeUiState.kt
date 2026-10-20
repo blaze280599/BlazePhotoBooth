@@ -14,9 +14,9 @@ data class HomeUiState(
     val draft: DraftSummary? = null,
 )
 
-/** The newest strip in the album, peeking out behind the Album button. */
+/** The newest strip in the album, peeking out behind the Album button. [version] changes when its picture does (Edit). */
 @Immutable
-data class RecentStrip(val sessionId: String, val thumbnail: File?)
+data class RecentStrip(val sessionId: String, val thumbnail: File?, val version: Long = 0)
 
 /** An unfinished booth session that can be continued (§11.4). [complete]: every shot is taken, so Continue goes to Pick. */
 @Immutable

@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import com.blaze.photobooth.data.files.SessionFileStore
+import com.blaze.photobooth.model.CanvasSize
 import com.blaze.photobooth.model.SlotRect
 import com.blaze.photobooth.model.StripSpec
 import kotlinx.coroutines.CoroutineDispatcher
@@ -55,6 +56,21 @@ class StripExporter(
         } finally {
             strip.recycle()
             thumb.recycle()
+        }
+    }
+
+    /** A fresh 600 px-wide `thumb.jpg` from an existing [strip] (a lost thumbnail, §4.6). */
+    suspend fun writeThumb(strip: File, thumb: File) {
+        val small = withContext(io) { BitmapOps.decode(open = { strip.inputStream() }, maxWidth = ExportSize.ThumbWidth * 2) }
+        val sized = withContext(compute) {
+            val t = ExportSize.thumb(CanvasSize(small.width, small.height))
+            small.scale(t.width, t.height)
+        }
+        try {
+            withContext(io) { write(sized, thumb, ThumbQuality) }
+        } finally {
+            if (sized !== small) sized.recycle()
+            small.recycle()
         }
     }
 

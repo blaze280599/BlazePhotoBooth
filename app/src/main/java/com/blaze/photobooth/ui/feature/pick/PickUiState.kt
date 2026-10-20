@@ -17,6 +17,8 @@ import com.blaze.photobooth.ui.feature.setup.FrameCardState
  */
 @Immutable
 data class PickUiState(
+    /** Edit mode (§4.7): a saved strip is being changed. Save instead of Print, no retakes. */
+    val editing: Boolean = false,
     val loaded: Boolean = false,
     val preview: StripSpec? = null,
     val shots: List<PickShot> = emptyList(),
@@ -33,7 +35,7 @@ data class PickUiState(
     /** The shot being peeked at full screen (long-press), with a bigger decode once it's ready. */
     val peek: PickShot? = null,
     val peekImage: ImageBitmap? = null,
-    /** The draft is gone (printed or discarded elsewhere): the route leaves. */
+    /** The draft (or the saved session being edited) is gone: the route leaves. */
     val missing: Boolean = false,
 ) {
     /** The preview-size photo in each slot, for the renderer. */

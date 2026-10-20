@@ -123,7 +123,7 @@ fun Confetti(particles: List<ConfettiParticle>, seconds: Float, colors: List<Col
 }
 
 /** A unit heart centred on the origin. */
-private fun heartPath() = Path().apply {
+internal fun heartPath() = Path().apply {
     moveTo(0f, 0.38f)
     cubicTo(-0.55f, 0.02f, -0.52f, -0.42f, -0.22f, -0.42f)
     cubicTo(-0.08f, -0.42f, 0f, -0.3f, 0f, -0.2f)

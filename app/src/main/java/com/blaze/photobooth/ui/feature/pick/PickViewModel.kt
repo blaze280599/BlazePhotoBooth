@@ -9,20 +9,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.blaze.photobooth.BoothApp
-import com.blaze.photobooth.data.SessionRepository
-import com.blaze.photobooth.data.files.BoothDraft
-import com.blaze.photobooth.data.files.BoothDraftStore
-import com.blaze.photobooth.data.files.SessionFileStore
 import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.data.frames.FrameRepository
 import com.blaze.photobooth.model.BoothConfig
+import com.blaze.photobooth.model.BoothLayout
 import com.blaze.photobooth.model.FrameId
 import com.blaze.photobooth.model.FrameSource
 import com.blaze.photobooth.model.FrameTheme
 import com.blaze.photobooth.model.SlotSelection
 import com.blaze.photobooth.model.StripSpec
 import com.blaze.photobooth.render.BitmapOps
-import com.blaze.photobooth.render.StripExporter
 import com.blaze.photobooth.ui.feature.setup.FrameCardState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -42,20 +38,19 @@ import java.io.File
 import java.time.LocalDate
 
 /**
- * Pick (README §4.4): the draft's shots, which one goes in each slot, and the quick edits (frame, filter,
- * caption, date). Every change is written back to the draft (§11.4). **Print ✿** renders the strip at full
- * size and saves the session ([SessionRepository.finalizeDraft]); Result shows it.
+ * Pick (README §4.4): the session's shots, which one goes in each slot, and the quick edits (frame, filter,
+ * caption, date). The shots come from a [PickSource]: the draft of a session just shot (every change is written
+ * back, §11.4, and **Print ✿** saves it to the album), or a saved session in Edit mode (§4.7: changes stay here
+ * until **Save**, which re-renders the strip). Either way the strip is rendered at full size by the source.
  */
 class PickViewModel(
-    private val draftStore: BoothDraftStore,
+    private val source: PickSource,
     private val frameRepository: FrameRepository,
-    private val sessions: SessionRepository,
-    private val exporter: StripExporter,
     private val today: () -> LocalDate = LocalDate::now,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
-    private val state = MutableStateFlow(PickUiState())
+    private val state = MutableStateFlow(PickUiState(editing = source.editing))
     val uiState: StateFlow<PickUiState> = state.asStateFlow()
 
     private val effectChannel = Channel<PickEffect>(Channel.BUFFERED)
@@ -64,6 +59,7 @@ class PickViewModel(
     private var config = BoothConfig()
     private var options: List<FrameOption> = emptyList()
     private var totalShots = 0
+    private var stampDate: LocalDate? = null
     private var previewJob: Job? = null
     private var peekJob: Job? = null
 
@@ -101,7 +97,7 @@ class PickViewModel(
     /** "Retake everything?" → yes: a fresh draft with the same choices, then Capture from shot 1 (§3). */
     fun retakeAll(onReady: () -> Unit) {
         viewModelScope.launch {
-            draftStore.begin(config, totalShots)
+            source.restart(config, totalShots)
             onReady()
         }
     }
@@ -109,28 +105,33 @@ class PickViewModel(
     /** "Discard session?" → yes. */
     fun discard(onDone: () -> Unit) {
         viewModelScope.launch {
-            draftStore.discard()
+            source.discard()
             onDone()
         }
     }
 
     private suspend fun load() {
         options = frameRepository.options.first()
-        draftStore.draft.collect { draft ->
-            if (draft == null) {
+        source.session.collect { session ->
+            if (session == null) {
                 if (!state.value.printing) state.update { it.copy(missing = true) }
                 return@collect
             }
-            if (!state.value.loaded) firstLoad(draft) else refreshShots(draft)
+            if (!state.value.loaded) firstLoad(session) else refreshShots(session)
         }
     }
 
-    private suspend fun firstLoad(draft: BoothDraft) {
-        config = draft.config.toConfig()
-        totalShots = draft.totalShots
-        val shots = loadShots(draft, emptyList())
+    private suspend fun firstLoad(session: PickSession) {
+        totalShots = session.totalShots
+        stampDate = session.stampDate
+        config = session.config
+        // A frame that no longer exists (an imported one deleted since): fall back to a theme that fits (§13).
+        if (options.none { it.id == config.frameId }) {
+            config = fallbackConfig(config, shotCount = session.shots.size, picked = session.selection.count { it != null })
+        }
+        val shots = loadShots(session, emptyList())
         val cuts = cutsFor(config)
-        val selection = SlotSelection.restore(draft.selection, cuts, shots.map { it.index })
+        val selection = SlotSelection.restore(session.selection, cuts, shots.map { it.index })
         state.update {
             it.copy(
                 loaded = true,
@@ -140,31 +141,31 @@ class PickViewModel(
                 frames = frameCards(shots.size),
                 frameId = config.frameId,
                 filter = config.filter,
-                caption = draft.caption.orEmpty(),
-                showDate = draft.showDate,
+                caption = session.caption.orEmpty(),
+                showDate = session.showDate,
             )
         }
-        if (selection.slots != draft.selection) persistPick()
+        if (selection.slots != session.selection) persistPick()
         rebuildPreview()
         loadFrameThumbnails()
     }
 
     /** A retake came back (§4.4): reload the shots whose file changed. */
-    private suspend fun refreshShots(draft: BoothDraft) {
+    private suspend fun refreshShots(session: PickSession) {
         val current = state.value.shots
-        if (draft.shots.size == current.size && draft.shots.all { s -> current.any { it.index == s.index && it.version == s.takenAt } }) return
-        val shots = loadShots(draft, current)
+        if (session.shots.size == current.size && session.shots.all { s -> current.any { it.index == s.index && it.version == s.version } }) return
+        val shots = loadShots(session, current)
         state.update { s -> s.copy(shots = shots, peek = null, peekImage = null) }
     }
 
-    private suspend fun loadShots(draft: BoothDraft, reuse: List<PickShot>): List<PickShot> {
-        val cuts = cutsFor(draft.config.toConfig())
-        return draft.shots.mapNotNull { shot ->
-            reuse.firstOrNull { it.index == shot.index && it.version == shot.takenAt }?.let { return@mapNotNull it }
+    private suspend fun loadShots(session: PickSession, reuse: List<PickShot>): List<PickShot> {
+        val cuts = cutsFor(config)
+        return session.shots.mapNotNull { shot ->
+            reuse.firstOrNull { it.index == shot.index && it.version == shot.version }?.let { return@mapNotNull it }
             try {
-                val file = draftStore.shotFile(shot.index)
+                val file = source.shotFile(shot.index)
                 val bitmap = withContext(io) { decodePreview(file) }
-                PickShot(shot.index, bitmap, bitmap.asImageBitmap(), bonus = shot.index >= cuts, version = shot.takenAt)
+                PickShot(shot.index, bitmap, bitmap.asImageBitmap(), bonus = shot.index >= cuts, version = shot.version)
             } catch (e: Exception) {
                 Log.w(Tag, "Couldn't load shot ${shot.index}", e)
                 null
@@ -213,13 +214,13 @@ class PickViewModel(
         if (next == config) return
         config = next
         state.update { it.copy(filter = next.filter, frameId = next.frameId) }
-        viewModelScope.launch { draftStore.updateConfig(next) }
+        viewModelScope.launch { source.saveConfig(next) }
         rebuildPreview()
     }
 
     private fun persistPick() {
         val s = state.value
-        viewModelScope.launch { draftStore.updatePick(s.selection.slots, s.caption.trim().ifEmpty { null }, s.showDate) }
+        viewModelScope.launch { source.savePick(s.selection.slots, s.caption.trim().ifEmpty { null }, s.showDate) }
     }
 
     private fun rebuildPreview() {
@@ -241,7 +242,8 @@ class PickViewModel(
             layout = c.layout,
             filter = c.filter,
             caption = s.caption.trim().takeIf { text && it.isNotEmpty() },
-            date = today().takeIf { text && s.showDate },
+            // A new strip is stamped today; an edited one keeps the day it was made.
+            date = (stampDate ?: today()).takeIf { text && s.showDate },
             preview = preview,
         )
     }
@@ -290,7 +292,7 @@ class PickViewModel(
         peekJob?.cancel()
         peekJob = viewModelScope.launch {
             val big = try {
-                withContext(io) { BitmapOps.decode(open = { draftStore.shotFile(index).inputStream() }, maxWidth = PeekMaxPx) }
+                withContext(io) { BitmapOps.decode(open = { source.shotFile(index).inputStream() }, maxWidth = PeekMaxPx) }
             } catch (e: Exception) {
                 Log.w(Tag, "Couldn't open shot $index", e)
                 return@launch
@@ -310,18 +312,13 @@ class PickViewModel(
         val c = config
         viewModelScope.launch {
             try {
-                draftStore.updatePick(s.selection.slots, s.caption.trim().ifEmpty { null }, s.showDate)
-                draftStore.updateConfig(c)
                 val spec = specFor(frameSource(c, preview = false), c, s, preview = false)
-                val id = sessions.finalizeDraft { _, dir ->
-                    val photos = s.selection.slots.map { i -> i?.let { File(dir, SessionFileStore.shotName(it)) } }
-                    exporter.export(spec, photos, dir)
-                }
+                val id = source.commit(spec, PickResult(c, s.selection.slots, s.caption.trim().ifEmpty { null }, s.showDate))
                 effectChannel.send(PickEffect.Printed(id))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(Tag, "Print failed", e)
+                Log.e(Tag, if (source.editing) "Saving the edit failed" else "Print failed", e)
                 state.update { it.copy(printing = false) }
                 effectChannel.send(PickEffect.PrintFailed)
             }
@@ -339,11 +336,28 @@ class PickViewModel(
             return BitmapOps.downscale(decoded, BitmapOps.PreviewMaxPx).also { if (it !== decoded) decoded.recycle() }
         }
 
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
+        /**
+         * The session's frame is gone: the default theme, on the layout with exactly [picked] cuts if there is one,
+         * else the biggest layout that [shotCount] shots can fill. Pure.
+         */
+        fun fallbackConfig(config: BoothConfig, shotCount: Int, picked: Int): BoothConfig {
+            val layout = BoothLayout.entries.firstOrNull { it.cuts == picked && it.cuts <= shotCount }
+                ?: BoothLayout.entries.filter { it.cuts <= shotCount }.maxByOrNull { it.cuts }
+                ?: BoothLayout.Solo
+            return config.copy(frameId = FrameId.theme(FrameTheme.Default), layout = layout)
+        }
+
+        /** Pick for the draft ([editSessionId] = null), or Edit for a saved session (§4.7). */
+        fun factory(editSessionId: String?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) as BoothApp
                 val c = app.container
-                PickViewModel(c.draftStore, c.frameRepository, c.sessionRepository, c.stripExporter)
+                val source = if (editSessionId == null) {
+                    DraftPickSource(c.draftStore, c.sessionRepository, c.stripExporter)
+                } else {
+                    SavedPickSource(editSessionId, c.sessionRepository, c.stripExporter)
+                }
+                PickViewModel(source, c.frameRepository)
             }
         }
     }

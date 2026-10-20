@@ -1,0 +1,45 @@
+package com.blaze.photobooth.ui.feature.detail
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+/**
+ * Stateful Detail (§4.7). Back is Nav 3's own pop (so predictive back works); Edit opens Pick in edit mode;
+ * after a delete, [onDeleted] goes to Album, which offers Undo.
+ */
+@Composable
+fun DetailRoute(
+    sessionId: String,
+    onBack: () -> Unit,
+    onEdit: (sessionId: String) -> Unit,
+    onDeleted: (sessionId: String) -> Unit,
+    viewModel: DetailViewModel = viewModel(factory = DetailViewModel.factory(sessionId)),
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val deleted by rememberUpdatedState(onDeleted)
+    val back by rememberUpdatedState(onBack)
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is DetailEffect.Deleted -> deleted(effect.sessionId)
+            }
+        }
+    }
+    LaunchedEffect(state.missing) { if (state.missing) back() }
+
+    DetailScreen(
+        state = state,
+        onEvent = { event ->
+            when (event) {
+                DetailEvent.Back -> onBack()
+                DetailEvent.Edit -> if (!state.deleting) onEdit(sessionId)
+                else -> viewModel.onEvent(event)
+            }
+        },
+    )
+}

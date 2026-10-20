@@ -2,7 +2,6 @@ package com.blaze.photobooth
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import com.blaze.photobooth.data.SessionRepository
 import com.blaze.photobooth.data.db.BoothDatabase
 import com.blaze.photobooth.data.files.BoothDraftStore
@@ -27,13 +26,10 @@ class BoothApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        // A session whose row didn't make it into the DB (process death mid-print) comes back (§11.1).
+        // Startup checks (§11.1, §11.2): a session that lost its row comes back, an interrupted edit is finished,
+        // old soft deletes are purged, and lost thumbnails are made again.
         container.appScope.launch {
-            try {
-                container.sessionRepository.recoverOrphans()
-            } catch (e: Exception) {
-                Log.e("BoothApp", "Orphan check failed", e)
-            }
+            container.sessionRepository.startup(makeThumb = container.stripExporter::writeThumb)
         }
     }
 }
@@ -46,8 +42,8 @@ class AppContainer(val appContext: Context) {
     /** The in-progress session, mirrored to `files/sessions/_draft/` (§11.4). */
     val draftStore: BoothDraftStore by lazy { BoothDraftStore(File(appContext.filesDir, SessionsDir)) }
 
-    /** Album count, newest strip and draft for Home. The draft is real since M3; the album arrives in M5. */
-    val homeSource: HomeSource by lazy { BoothHomeSource(draftStore) }
+    /** Album count, newest strip and draft for Home (§4.1). */
+    val homeSource: HomeSource by lazy { BoothHomeSource(draftStore, sessionRepository) }
 
     /** Her frames and the built-in themes (§5.5.3). Imported frames plug in here in M7. */
     val frameRepository: FrameRepository by lazy { FrameRepository(appContext) }

@@ -222,13 +222,54 @@
     <string name="placeholder_capture_title">Capture</string>
     <string name="placeholder_capture_body">The countdown, flash and cheesy poses happen here. Say kimchi!</string>
     <string name="placeholder_capture_next">Pick cuts</string>
-    <string name="placeholder_pick_title">Pick</string>
-    <string name="placeholder_pick_edit_body">Re-pick cuts or change the frame of a saved strip.</string>
-    <string name="placeholder_pick_edit_next">Save changes</string>
-    <string name="placeholder_album_title">My Album</string>
-    <string name="placeholder_album_body">Every strip you make lives here forever.</string>
-    <string name="placeholder_album_next">Open a strip</string>
-    <string name="placeholder_detail_title">Strip</string>
-    <string name="placeholder_detail_body">See the strip and every cut, then save, share or edit.</string>
-    <string name="placeholder_detail_next">Edit</string>
+
+    <!-- Pick in edit mode (§4.7) -->
+    <string name="pick_edit_title">Edit your strip</string>
+    <string name="pick_save">Save changes ✿</string>
+    <string name="pick_save_waiting">Fill every slot to save</string>
+    <string name="pick_saving">Saving your changes…</string>
+    <string name="pick_save_failed">Couldn\'t save your changes. Your strip is as it was; try again.</string>
+    <string name="cd_pick_cancel_edit">Cancel editing</string>
+
+    <!-- Album (§4.6) -->
+    <string name="album_title">My Album</string>
+    <string name="album_filter_all">All</string>
+    <string name="album_filter_favorites">Favourites</string>
+    <string name="album_empty_title">No strips yet.</string>
+    <string name="album_empty_body">Let\'s make memories!</string>
+    <string name="album_no_favorites">No favourites yet. Tap ♡ on a strip you love.</string>
+    <string name="album_no_matches">No strips here yet.</string>
+    <string name="album_save_selected">Save to Photos</string>
+    <string name="album_undo">Undo</string>
+    <plurals name="album_selected">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="album_delete_selected">
+        <item quantity="one">Delete (%d)</item>
+        <item quantity="other">Delete (%d)</item>
+    </plurals>
+    <plurals name="album_deleted">
+        <item quantity="one">%d strip deleted</item>
+        <item quantity="other">%d strips deleted</item>
+    </plurals>
+    <string name="cd_album_clear_selection">Stop selecting</string>
+    <string name="cd_album_strip">Strip from %s</string>
+    <string name="cd_album_strip_favorite">Strip from %s, a favourite</string>
+    <string name="cd_album_select">Select</string>
+    <string name="cd_favorite">Favourite</string>
+
+    <!-- Detail (§4.7) -->
+    <string name="detail_tab_strip">Strip</string>
+    <string name="detail_tab_photos">Photos</string>
+    <string name="detail_cut_title">Cut %1$d of %2$d</string>
+    <string name="detail_unused_title">✦ Unused shot %1$d of %2$d</string>
+    <string name="detail_unused_section">Unused shots ✦</string>
+    <string name="detail_save_strip">Save strip</string>
+    <string name="detail_save_photo">Save photo</string>
+    <string name="detail_save_all">Save all</string>
+    <string name="detail_delete">Delete</string>
+    <string name="detail_edit">Edit</string>
+    <string name="cd_detail_strip">Your strip</string>
+    <string name="cd_detail_unused_shot">Unused shot %d. Shows it above</string>
 </resources>

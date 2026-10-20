@@ -30,6 +30,10 @@ interface SessionDao {
     @Query("SELECT COUNT(*) FROM sessions WHERE deleted_at IS NULL")
     fun observeCount(): Flow<Int>
 
+    /** The newest strip, for Home's peek (§4.1). */
+    @Query("SELECT * FROM sessions WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1")
+    fun observeLatest(): Flow<SessionEntity?>
+
     @Query("SELECT * FROM sessions WHERE id = :id")
     fun observeSession(id: String): Flow<SessionEntity?>
 
@@ -51,6 +55,32 @@ interface SessionDao {
 
     @Query("UPDATE sessions SET deleted_at = NULL WHERE id = :id")
     suspend fun restore(id: String)
+
+    /** Album multi-select and Detail's Delete (§4.6, §4.7): one Undo brings the whole batch back. */
+    @Query("UPDATE sessions SET deleted_at = :now WHERE id IN (:ids)")
+    suspend fun softDeleteAll(ids: List<String>, now: Long)
+
+    @Query("UPDATE sessions SET deleted_at = NULL WHERE id IN (:ids)")
+    suspend fun restoreAll(ids: List<String>)
+
+    @Query(
+        "UPDATE sessions SET layout_id = :layoutId, frame_id = :frameId, filter_id = :filterId, caption = :caption, " +
+            "show_date = :showDate, updated_at = :now WHERE id = :id",
+    )
+    suspend fun updateLook(id: String, layoutId: String, frameId: String, filterId: String, caption: String?, showDate: Boolean, now: Long)
+
+    @Query("UPDATE shots SET slot_index = :slot WHERE session_id = :sessionId AND shot_index = :shotIndex")
+    suspend fun setSlot(sessionId: String, shotIndex: Int, slot: Int?)
+
+    /**
+     * Edit (§4.7): the new look and which shot sits in each slot ([slots]: shot index → slot, null = unused),
+     * all at once or not at all.
+     */
+    @Transaction
+    suspend fun applyEdit(session: SessionEntity, slots: Map<Int, Int?>) {
+        updateLook(session.id, session.layoutId, session.frameId, session.filterId, session.caption, session.showDate, session.updatedAt)
+        slots.forEach { (shot, slot) -> setSlot(session.id, shot, slot) }
+    }
 
     /** Soft-deleted before [cutoff]: ready to purge for good (§11.2). */
     @Query("SELECT id FROM sessions WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff")

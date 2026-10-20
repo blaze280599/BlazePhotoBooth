@@ -12,6 +12,27 @@ import com.blaze.photobooth.core.LocalReduceMotion
 object SharedKeys {
     /** §7 A7: Capture's shot tray grows into Pick's tray grid. */
     const val ShotTray = "shot-tray"
+
+    /** §7 A10: a saved strip's picture, from its Album card into Detail's hero. */
+    fun strip(sessionId: String) = "strip-$sessionId"
+}
+
+/**
+ * A shared-element hero (§7 A10): the same picture on two screens, whose bounds glide from one to the other while
+ * the screens slide. Both ends must show the same picture at the same aspect ratio. Like [sharedContainer], it does
+ * nothing outside [BoothNavHost] or with reduce motion on.
+ */
+@Composable
+fun Modifier.sharedHero(key: String): Modifier {
+    val shared = LocalSharedTransitionScope.current ?: return this
+    if (LocalReduceMotion.current) return this
+    val animated = LocalNavAnimatedContentScope.current
+    return with(shared) {
+        this@sharedHero.sharedElement(
+            sharedContentState = rememberSharedContentState(key),
+            animatedVisibilityScope = animated,
+        )
+    }
 }
 
 /**

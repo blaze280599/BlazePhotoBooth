@@ -21,6 +21,9 @@ import kotlinx.coroutines.launch
 /**
  * Stateful Pick: haptics for every placement (§6.5), the A8 fly-in, the Print shake, and the §3 back rules:
  * back asks "Retake everything?", ✕ asks "Discard session?". [onRetake] shoots one shot again (§4.4).
+ *
+ * With [editSessionId] it's Edit (§4.7): Save re-renders that saved strip and calls [onEditDone]; ✕ and back
+ * cancel with no changes ([onCancelEdit]), with Nav 3's own back so predictive back works.
  */
 @Composable
 fun PickRoute(
@@ -28,8 +31,12 @@ fun PickRoute(
     onRetake: (shotIndex: Int) -> Unit,
     onDiscarded: () -> Unit,
     onPrinted: (sessionId: String) -> Unit,
-    viewModel: PickViewModel = viewModel(factory = PickViewModel.Factory),
+    editSessionId: String? = null,
+    onEditDone: () -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    viewModel: PickViewModel = viewModel(factory = PickViewModel.factory(editSessionId)),
 ) {
+    val editing = editSessionId != null
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = rememberBoothHaptics()
     val snackbar = remember { SnackbarHostState() }
@@ -37,7 +44,8 @@ fun PickRoute(
     var flightKey by remember { mutableIntStateOf(0) }
     var rejectCount by remember { mutableIntStateOf(0) }
     val printed by rememberUpdatedState(onPrinted)
-    val printFailed = stringResource(R.string.pick_print_failed)
+    val editDone by rememberUpdatedState(onEditDone)
+    val printFailed = stringResource(if (editing) R.string.pick_save_failed else R.string.pick_print_failed)
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
@@ -53,19 +61,24 @@ fun PickRoute(
                 }
                 is PickEffect.Printed -> {
                     haptics.confirm()
-                    printed(effect.sessionId)
+                    if (editing) editDone() else printed(effect.sessionId)
                 }
                 PickEffect.PrintFailed -> launch { snackbar.showSnackbar(printFailed) }
             }
         }
     }
 
-    val missing by rememberUpdatedState(onDiscarded)
+    val missing by rememberUpdatedState(if (editing) onCancelEdit else onDiscarded)
     LaunchedEffect(state.missing) { if (state.missing) missing() }
 
     var confirmRetakeAll by rememberSaveable { mutableStateOf(false) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = !state.printing) { confirmRetakeAll = true }
+    if (editing) {
+        // Back cancels the edit by itself (Nav 3's pop); only a save in progress holds it.
+        BackHandler(enabled = state.printing) {}
+    } else {
+        BackHandler(enabled = !state.printing) { confirmRetakeAll = true }
+    }
 
     PickScreen(
         state = state,
@@ -74,8 +87,8 @@ fun PickRoute(
         snackbarHostState = snackbar,
         onEvent = { event ->
             when (event) {
-                PickEvent.Back -> confirmRetakeAll = true
-                PickEvent.Close -> confirmDiscard = true
+                PickEvent.Back -> if (editing) onCancelEdit() else confirmRetakeAll = true
+                PickEvent.Close -> if (editing) onCancelEdit() else confirmDiscard = true
                 is PickEvent.Retake -> {
                     viewModel.onEvent(PickEvent.DismissPeek)
                     onRetake(event.index)

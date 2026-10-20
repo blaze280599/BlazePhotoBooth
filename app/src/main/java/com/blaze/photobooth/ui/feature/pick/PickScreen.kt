@@ -239,6 +239,7 @@ fun PickScreen(
                     }
                     PrintButton(
                         ready = state.canPrint,
+                        editing = state.editing,
                         printing = state.printing,
                         rejectCount = rejectCount,
                         onClick = { onEvent(PickEvent.Print) },
@@ -264,9 +265,9 @@ fun PickScreen(
 
         val peek = state.peek
         AnimatedVisibility(visible = peek != null, enter = fadeIn(), exit = fadeOut()) {
-            if (peek != null) PeekOverlay(peek, state.peekImage, state.filter, state.selection.slotOf(peek.index), onEvent)
+            if (peek != null) PeekOverlay(peek, state.peekImage, state.filter, state.selection.slotOf(peek.index), canRetake = !state.editing, onEvent)
         }
-        if (state.printing) PrintingOverlay()
+        if (state.printing) PrintingOverlay(state.editing)
     }
 }
 
@@ -287,10 +288,13 @@ private fun PickTopBar(state: PickUiState, onClose: () -> Unit, modifier: Modifi
                 contentColor = MaterialTheme.colorScheme.primary,
             ),
         ) {
-            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.cd_pick_discard))
+            Icon(
+                Icons.Rounded.Close,
+                contentDescription = stringResource(if (state.editing) R.string.cd_pick_cancel_edit else R.string.cd_pick_discard),
+            )
         }
         Text(
-            text = stringResource(R.string.pick_title),
+            text = stringResource(if (state.editing) R.string.pick_edit_title else R.string.pick_title),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
@@ -716,7 +720,7 @@ private fun TextPage(state: PickUiState, onEvent: (PickEvent) -> Unit) {
  * route plays `REJECT`.
  */
 @Composable
-private fun PrintButton(ready: Boolean, printing: Boolean, rejectCount: Int, onClick: () -> Unit) {
+private fun PrintButton(ready: Boolean, editing: Boolean, printing: Boolean, rejectCount: Int, onClick: () -> Unit) {
     val reduceMotion = LocalReduceMotion.current
     val shake = remember { Animatable(0f) }
     LaunchedEffect(rejectCount) {
@@ -746,7 +750,14 @@ private fun PrintButton(ready: Boolean, printing: Boolean, rejectCount: Int, onC
         contentPadding = PaddingValues(horizontal = 24.dp),
     ) {
         Text(
-            stringResource(if (ready) R.string.pick_print else R.string.pick_print_waiting),
+            stringResource(
+                when {
+                    editing && ready -> R.string.pick_save
+                    editing -> R.string.pick_save_waiting
+                    ready -> R.string.pick_print
+                    else -> R.string.pick_print_waiting
+                },
+            ),
             style = MaterialTheme.typography.titleLarge,
         )
     }
@@ -756,9 +767,16 @@ private const val ShakeMillis = 400
 
 // ---- Overlays ----
 
-/** Long-press peek (§4.4): the shot full screen, with Retake. Tap outside (or back) to close. */
+/** Long-press peek (§4.4): the shot full screen, with Retake (not in Edit). Tap outside (or back) to close. */
 @Composable
-private fun PeekOverlay(shot: PickShot, image: ImageBitmap?, filter: PhotoFilter, slot: Int?, onEvent: (PickEvent) -> Unit) {
+private fun PeekOverlay(
+    shot: PickShot,
+    image: ImageBitmap?,
+    filter: PhotoFilter,
+    slot: Int?,
+    canRetake: Boolean,
+    onEvent: (PickEvent) -> Unit,
+) {
     BackHandler { onEvent(PickEvent.DismissPeek) }
     val colorFilter = remember(filter) { Filters.compose(filter) }
     val closeLabel = stringResource(R.string.cd_pick_peek_close)
@@ -799,13 +817,16 @@ private fun PeekOverlay(shot: PickShot, image: ImageBitmap?, filter: PhotoFilter
             }
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SquishyButton(
-                    onClick = { onEvent(PickEvent.Retake(shot.index)) },
-                    style = SquishyButtonStyle.Tonal,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                ) {
-                    Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text(stringResource(R.string.pick_retake), style = MaterialTheme.typography.titleMedium)
+                // A saved session has no camera behind it: Edit re-picks, it doesn't retake (§4.7).
+                if (canRetake) {
+                    SquishyButton(
+                        onClick = { onEvent(PickEvent.Retake(shot.index)) },
+                        style = SquishyButtonStyle.Tonal,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                    ) {
+                        Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text(stringResource(R.string.pick_retake), style = MaterialTheme.typography.titleMedium)
+                    }
                 }
                 SquishyButton(
                     onClick = { onEvent(PickEvent.DismissPeek) },
@@ -820,7 +841,7 @@ private fun PeekOverlay(shot: PickShot, image: ImageBitmap?, filter: PhotoFilter
 
 /** "Printing your memories…" while the full-size strip renders and the session is saved. */
 @Composable
-private fun PrintingOverlay() {
+private fun PrintingOverlay(editing: Boolean) {
     Box(
         Modifier
             .fillMaxSize()
@@ -833,7 +854,7 @@ private fun PrintingOverlay() {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    stringResource(R.string.pick_printing),
+                    stringResource(if (editing) R.string.pick_saving else R.string.pick_printing),
                     style = MaterialTheme.typography.titleLarge.handwritten(),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
