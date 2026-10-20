@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.blaze.photobooth.ui.feature.home.HomeScreen
+import com.blaze.photobooth.ui.navigation.BoothNavHost
 import com.blaze.photobooth.ui.theme.BoothTheme
 
 class MainActivity : ComponentActivity() {
@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BoothTheme {
-                HomeScreen()
+                BoothNavHost()
             }
         }
     }

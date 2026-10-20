@@ -24,4 +24,20 @@ class ThemeContrastTest {
         val ratio = contrast(DarkBoothColors.onSurface, DarkBoothColors.surface)
         assertTrue("dark onSurface/surface contrast was $ratio", ratio >= 4.5f)
     }
+
+    @Test
+    fun secondaryTextIsReadable() {
+        for (scheme in listOf(LightBoothColors, DarkBoothColors)) {
+            val ratio = contrast(scheme.onSurfaceVariant, scheme.surface)
+            assertTrue("onSurfaceVariant/surface contrast was $ratio", ratio >= 4.5f)
+        }
+    }
+
+    @Test
+    fun draftCardTextIsReadable() {
+        for (scheme in listOf(LightBoothColors, DarkBoothColors)) {
+            val ratio = contrast(scheme.inverseOnSurface, scheme.inverseSurface)
+            assertTrue("inverseOnSurface/inverseSurface contrast was $ratio", ratio >= 4.5f)
+        }
+    }
 }

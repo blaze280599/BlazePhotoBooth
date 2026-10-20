@@ -1,5 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Blaze Booth</string>
+
+    <!-- Home (§4.1) -->
     <string name="home_tagline">오늘의 네컷 · today\'s four cuts</string>
+    <string name="home_start">Start ✿</string>
+    <string name="home_album">My Album</string>
+    <string name="cd_logo_camera">Blaze Booth camera</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_recent_strip">Your latest strip. Opens it.</string>
+    <plurals name="cd_album_count">
+        <item quantity="one">%d strip in your album</item>
+        <item quantity="other">%d strips in your album</item>
+    </plurals>
+    <plurals name="home_draft_message">
+        <item quantity="one">You have %d unfinished shot. Continue?</item>
+        <item quantity="other">You have %d unfinished shots. Continue?</item>
+    </plurals>
+    <string name="home_draft_continue">Continue</string>
+    <string name="home_draft_discard">Discard</string>
+
+    <!-- Settings sheet (§4.8). Rows are a preview until M8 wires them up. -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_preview_note">Just a peek for now ✿ these switch on in a later update.</string>
+    <string name="settings_soon">Soon</string>
+    <string name="settings_sounds">Shutter &amp; countdown sounds</string>
+    <string name="settings_haptics">Haptics</string>
+    <string name="settings_screen_flash">Screen flash for selfies</string>
+    <string name="settings_save_mirrored">Save mirrored selfies as seen</string>
+    <string name="settings_auto_save">Auto-save strip to Photos</string>
+    <string name="settings_auto_save_summary">After printing</string>
+    <string name="settings_manage_frames">Manage frames</string>
+    <string name="settings_manage_frames_summary">Rename, reorder or hide your frames</string>
+    <string name="settings_storage">Storage used</string>
+    <string name="settings_storage_summary">Counted once the album arrives</string>
+    <string name="settings_about">About &amp; licenses</string>
+    <string name="settings_about_summary">Fonts: Fredoka and Gaegu (SIL OFL 1.1)</string>
+
+    <!-- Placeholder screens (M1 shell). Each is replaced by its real screen in a later milestone. -->
+    <string name="cd_back">Back</string>
+    <string name="placeholder_coming">Coming in %1$s ✿</string>
+    <string name="placeholder_setup_title">Setup</string>
+    <string name="placeholder_setup_body">Pick a layout, frame, filter and timer here.</string>
+    <string name="placeholder_setup_next">Let\'s go!</string>
+    <string name="placeholder_capture_title">Capture</string>
+    <string name="placeholder_capture_body">The countdown, flash and cheesy poses happen here. Say kimchi!</string>
+    <string name="placeholder_capture_next">Pick cuts</string>
+    <string name="placeholder_pick_title">Pick</string>
+    <string name="placeholder_pick_body">Choose your favourite cuts and add a caption.</string>
+    <string name="placeholder_pick_edit_body">Re-pick cuts or change the frame of a saved strip.</string>
+    <string name="placeholder_pick_next">Print ✿</string>
+    <string name="placeholder_pick_edit_next">Save changes</string>
+    <string name="placeholder_result_title">Result</string>
+    <string name="placeholder_result_body">Your strip prints out here, with confetti!</string>
+    <string name="placeholder_result_album">Album</string>
+    <string name="placeholder_result_again">Again!</string>
+    <string name="placeholder_album_title">My Album</string>
+    <string name="placeholder_album_body">Every strip you make lives here forever.</string>
+    <string name="placeholder_album_next">Open a strip</string>
+    <string name="placeholder_detail_title">Strip</string>
+    <string name="placeholder_detail_body">See the strip and every cut, then save, share or edit.</string>
+    <string name="placeholder_detail_next">Edit</string>
 </resources>

@@ -2,6 +2,8 @@ package com.blaze.photobooth
 
 import android.app.Application
 import android.content.Context
+import com.blaze.photobooth.ui.feature.home.EmptyHomeSource
+import com.blaze.photobooth.ui.feature.home.HomeSource
 
 class BoothApp : Application() {
 
@@ -16,6 +18,9 @@ class BoothApp : Application() {
 
 /**
  * Manual DI root (README §8.1). Repositories, stores and controllers are added here
- * milestone by milestone; for now it only holds the application context.
+ * milestone by milestone.
  */
-class AppContainer(val appContext: Context)
+class AppContainer(val appContext: Context) {
+    /** Album count, newest strip and draft for Home. Empty until the album (M5) and draft store (M3) exist. */
+    val homeSource: HomeSource = EmptyHomeSource
+}

@@ -5,7 +5,7 @@ A Korean self-photo-studio experience (think 인생네컷 *Life4Cuts*, Photoism,
 > **Built by an AI agent.** Claude (Claude Code) writes this app autonomously. This README is the **single source of truth** for what to build, how it looks and feels, how it's put together, and in what order. When a decision changes, update this file first (see the [Decision log](#18-decision-log)) and then change the code.
 
 **Target device:** Google **Pixel 9** (`tokay`, verified over adb), running **Android 17 (API 37.1)**, with a 6.3" 1080×2424 OLED at 60–120 Hz, 420 dpi density, 12 GB RAM, a 10.5 MP front and 50 MP rear camera. Portrait only.
-**Status:** M0 ✅ (2026-10-20). Scaffold builds green and the themed app launches on the Pixel 9. Next: M1. See [Milestones](#16-milestones).
+**Status:** M0 ✅ M1 ✅ (2026-10-20). The design system, Navigation 3 shell and the animated Home screen run on the Pixel 9; every other screen is a placeholder. Next: M2. See [Milestones](#16-milestones).
 **Her frames:** ✅ 5 frames processed, AI-upscaled, text removed, bundled, and **approved by her** (2026-10-20) (§5.5.6).
 
 ---
@@ -100,6 +100,7 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
 - **Actions:** a large pill **Start ✿** button (primary, squishes on press), a secondary **My Album** button showing a small count badge, and a settings gear in the top-right corner.
 - **Recent strip peek:** if the album isn't empty, the latest strip is tucked behind the Album button at a −8° tilt, peeking out. Tapping it opens Detail.
 - **Draft recovery:** if an unfinished session exists (§11.4), a snackbar-style card appears: *"You have 3 unfinished shots. Continue?"* (Continue / Discard).
+- **Data wiring:** the badge, peek and draft card read a `HomeUiState` from `HomeViewModel`, which combines the flows of a `HomeSource` (`AppContainer.homeSource`). M1 ships `EmptyHomeSource` (no strips, no draft), so all three stay hidden. M3 (draft) and M5 (album) provide the real source, and they light up without UI changes.
 
 ### 4.2 Setup 🎀
 - **Top 55%:** a **live strip preview** rendered by the real `StripRenderer` with cute placeholder silhouettes in each cell. It cross-fades and springs whenever a choice changes. It tilts subtly with device tilt (±3°, optional parallax).
@@ -156,6 +157,8 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
 
 ### 4.8 Settings ⚙️ (modal bottom sheet from Home)
 Shutter & countdown sounds · Haptics · Screen flash for selfies · Save mirrored selfies as seen · Auto-save strip to Photos after printing (default **off**) · **Manage frames** (rename, reorder, hide or delete custom frames) · Storage used (e.g. "42 strips · 310 MB") · About & licenses.
+
+*Since M1:* the sheet opens from the Home gear as a read-only preview. Toggles show their defaults but are disabled, the other rows carry a "Soon" pill, and a note says they switch on later. M8 wires them to DataStore (§11.6).
 
 ### 4.9 Add frame ➕ (import flow)
 1. **Pick:** the system Photo Picker (`PickVisualMedia`, images only, no permission needed) opens. She chooses her frame image (PNG or JPG).
@@ -353,6 +356,10 @@ A custom Material 3 `ColorScheme`. Dynamic colour is **off**, because the brand 
 | `outline` | `#E8C9D2` | `#5A4A55` |
 | accent mint (decor only) | `#9FE2BF` | `#7FCFAA` |
 | accent sky (decor only) | `#A7D8FF` | `#86BDEB` |
+| Home gradient (top → bottom) | `#FFF7F3` → `#FFD6E3` | `#1B1520` → `#3A2342` |
+| raised controls on the gradient | `#FFFFFF` | `#3B3141` |
+
+The remaining Material roles (containers, variants, inverse) are filled in `ui/theme/Color.kt` to match. Colours with no Material slot (mint, sky, gradient, raised) live in `BoothExtraColors`, read via `BoothTheme.extraColors`.
 
 ### 6.2 Typography
 - **Fredoka** (variable, OFL) for all UI text. Display/headline use weight 600, titles 500, body 400. It's bundled at `res/font/fredoka.ttf`.
@@ -384,7 +391,7 @@ Short, warm and playful, never childish. Examples: *"Let's go!"*, *"Say kimchi!"
 ### 6.7 Accessibility
 - Contrast: text on surfaces is ≥ 4.5:1. Frame themes are decorative, but footer text on them is ≥ 3:1.
 - Every icon button has a `contentDescription`, and the countdown is announced politely to TalkBack.
-- **Reduce motion:** when the system animator duration scale is 0 (or "Remove animations" is on), floating particles, confetti and the printing sway are skipped. State changes still cross-fade.
+- **Reduce motion:** when the system animator duration scale is 0 (or "Remove animations" is on), ambient motion stops: floating particles freeze in place (still drawn, as decoration), the blob and wordmark hold still, and confetti and the printing sway are skipped. State changes still cross-fade. `core/ReduceMotion.kt` reads the setting live, and `BoothTheme` provides it as `LocalReduceMotion`.
 - Touch targets are ≥ 48 dp, and the shutter is 88 dp.
 
 ---
@@ -397,7 +404,12 @@ Short, warm and playful, never childish. Examples: *"Let's go!"*, *"Say kimchi!"
 | `Bouncy` | `spring(dampingRatio = 0.5f, stiffness = 400f)` | stickers, countdown pop, selected cards |
 | `Snappy` | `spring(dampingRatio = 0.8f, stiffness = 800f)` | presses, toggles, slot fills |
 | `Gentle` | `spring(dampingRatio = 1f, stiffness = 200f)` | screen-level layout, sheets |
-| `Float` | infinite, 6–12 s, ease-in-out | ambient particles, blob rotation |
+| `Float` | infinite, 6–12 s, ease-in-out | ambient particles, blob morph |
+| `floatSpin` | infinite, 24 s per turn, linear | blob rotation (linear, so the turn never pauses) |
+| `release` | `spring(dampingRatio = 0.38f, stiffness = 500f)` | the overshoot when a squished button is let go (A3) |
+| `BobMillis` | 2.6 s sine loop, linear | wordmark letter bob (A2) |
+
+Particles drift at a constant speed per depth (9 / 15 / 24 dp/s) on a frame clock, with a slow sine sway, rather than a tween.
 
 | # | Where | Animation |
 |---|---|---|
@@ -441,6 +453,7 @@ Versions are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml) 
 | Serialization | kotlinx.serialization (nav keys) | 1.12.0 |
 | Splash | core-splashscreen | 1.2.0 |
 | DI | **Manual** `AppContainer` on the `Application` (small app, no Hilt overhead) | — |
+| Screenshot tests | Roborazzi (+ compose, junit-rule) on Robolectric native graphics; Compose `ui-test-junit4` (BOM); androidx.test ext-junit; Espresso core | 1.76.0 / Robolectric 4.17 / 1.3.0 / 3.7.0 |
 
 ### 8.2 Layers
 ```
@@ -468,6 +481,8 @@ Versions are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml) 
 @Serializable data class Detail(val sessionId: String) : NavKey
 ```
 The back stack is `rememberNavBackStack(Home)`. `NavDisplay` uses `rememberSaveableStateHolderNavEntryDecorator()` and `rememberViewModelStoreNavEntryDecorator()`, wrapped in a `SharedTransitionLayout`. "Print" navigates with `backStack.removeAll { it is Setup || it is Capture || it is Pick }`, then `add(Result(id))`.
+
+As built in M1 (`ui/navigation/BoothNavHost.kt`): Nav 3 1.2.0's `NavDisplay` takes the `SharedTransitionScope` directly (`sharedTransitionScope = this`), and the scope is also exposed as `LocalSharedTransitionScope` for the A10 hero. `transitionSpec`, `popTransitionSpec` and `predictivePopTransitionSpec` implement A1. Pushing a key that's already on top is ignored (no double-tap duplicates). Leaving Result (Again! / Album) removes Result from the stack, so back never returns to it. Until their milestones, non-Home keys show a `PlaceholderScreen`: an emoji, "Coming in Mx ✿", a back button, and buttons that walk the real flow (Setup → Capture → Pick → Print → Result, Album → Detail → Edit → Pick).
 
 ### 8.4 Domain model (in-memory)
 ```kotlin
@@ -661,7 +676,7 @@ BlazePhotoBooth/
         │       │   ├── export/               ← PhotoExporter (MediaStore), ShareHelper
         │       │   ├── prefs/                ← BoothPreferences (DataStore)
         │       │   └── SessionRepository.kt
-        │       ├── core/                     ← Haptics, Sounds, ReduceMotion, Result helpers
+        │       ├── core/                     ← ReduceMotion (M1); Haptics, Sounds, Result helpers later
         │       └── ui/
         │           ├── theme/                ← Color, Type, Shape, Motion, Theme
         │           ├── components/           ← SquishyButton, FloatingParticles, BlobShape, StripPreview,
@@ -669,8 +684,11 @@ BlazePhotoBooth/
         │           ├── navigation/           ← NavKeys, BoothNavHost
         │           └── feature/
         │               ├── home/  setup/  capture/  pick/  result/  album/  detail/  settings/  frames/
-        │               │   (each: XxxRoute.kt, XxxScreen.kt, XxxViewModel.kt, XxxUiState.kt)
-        └── test/java/com/blaze/photobooth/  ← JVM unit tests
+        │               │   (each: XxxRoute.kt, XxxScreen.kt, XxxViewModel.kt, XxxUiState.kt; home/ also HomeSource.kt)
+        │               └── placeholder/     ← PlaceholderScreen for screens not built yet (M1 shell)
+        └── test/
+            ├── java/com/blaze/photobooth/  ← JVM unit tests + Roborazzi screenshot tests (screenshots/)
+            └── screenshots/               ← recorded Roborazzi PNGs (§15.4)
 ```
 
 ---
@@ -713,6 +731,14 @@ In PowerShell, call adb as `& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.
 
 **What the agent does with the phone:** `installDebug`, launching the app (`am start`), screenshots (`exec-out screencap -p`), screen recordings, `logcat` for crashes, UI hierarchy dumps (`uiautomator dump`) and taps/swipes (`input`) to walk through flows. It never changes device settings and never touches other apps.
 
+### 15.4 Screenshot tests (Roborazzi)
+Composables render to PNG on the JVM (Robolectric native graphics at Pixel 9 size, `w411dp-h923dp-port-420dpi`), with no phone needed. Tests live in `app/src/test/java/.../screenshots/`, and the PNGs in `app/src/test/screenshots/` (committed).
+```bash
+./gradlew recordRoborazziDebug     # (re)write the PNGs after an intended UI change
+./gradlew verifyRoborazziDebug     # fail if the UI drifted from the PNGs
+```
+Plain `testDebugUnitTest` runs them too, without comparing. The Compose test clock pauses infinite animations, so each PNG is the first frame. Gotchas: unit tests need `--add-exports/--add-opens java.base/jdk.internal.access` (set in `app/build.gradle.kts`), and a wrap-content root holding a rotated layer renders blank, so samples with blobs use `fillMaxWidth()`.
+
 ---
 
 ## 16. Milestones
@@ -722,7 +748,7 @@ Each milestone ends with a **green build** (`assembleDebug testDebugUnitTest lin
 | # | Milestone | Scope | Done when |
 |---|---|---|---|
 | **M0** ✅ | Scaffold & toolchain | JDK and SDK installed ✅, Gradle config ✅, manifest ✅, fonts ✅, Gradle wrapper ✅, app icon and splash ✅, `git init` ✅ | Empty themed app launches on the phone ✅ (2026-10-20) |
-| **M1** | Design system & shell | `ui/theme` (colour, type, shape, motion), core components (SquishyButton, FloatingParticles, BlobShape), Nav 3 shell with all keys as placeholder screens, Home screen complete | Home looks and animates as in §4.1; navigation and predictive back work |
+| **M1** ✅ | Design system & shell | `ui/theme` (colour, type, shape, motion) ✅, core components (SquishyButton, FloatingParticles, BlobShape) ✅, Nav 3 shell with all keys as placeholder screens ✅, Home screen complete ✅, settings sheet shell ✅, Roborazzi screenshot tests ✅ | Home looks and animates as in §4.1; navigation and predictive back work ✅ (2026-10-20) |
 | **M2** | Catalog & renderer | `model/` catalog (§5), `LayoutGeometry` and tests, `FrameSource` (theme **and image** frames), `FrameSlotDetector` with synthetic-frame tests (§5.5.2), `StripRenderer` with stickers and fonts, `StripPreview` composable, `FrameRepository` (bundled `frames.json`), **Setup** screen with DataStore persistence, plus **one placeholder image frame** (a 4-window strip the agent draws) to prove the pipeline | Changing layout, frame or filter updates the live preview instantly; the placeholder image frame previews with 4 windows |
 | **M3** | Capture | Camera permission flow, CameraController, filtered and cropped viewfinder, countdown sequence, flash, sound, haptics, screen flash, shot pipeline (§9.4), draft store | A full sequence of N shots lands in `_draft/` upright and correctly cropped |
 | **M4** | Pick & Result | Pick interactions (§4.4), retake-one, caption and date, Print → render → finalise session (Room and files), Result printing reveal and confetti | The printed strip matches the preview exactly; the session appears in the DB |
@@ -745,7 +771,7 @@ Rules Claude follows while building this app:
 5. **Commit per milestone** (or per coherent sub-step) with a descriptive message. Never commit `local.properties` or build outputs.
 6. **Dependencies:** add new ones to `libs.versions.toml` and §8.1, stable versions only, with a one-line justification in the decision log.
 7. **Code style:** idiomatic Kotlin; stateless, previewable `Screen` composables with `@Preview`s; immutable `UiState`; no business logic in composables; no `!!`; bitmap work off the main thread; strings in `strings.xml`; `contentDescription` on every icon.
-8. **Tests:** pure logic (layout geometry, slot selection, file naming, draft serialisation, filter matrices) gets JVM unit tests. UI and camera are verified by the human with the milestone checklist.
+8. **Tests:** pure logic (layout geometry, slot selection, file naming, draft serialisation, filter matrices) gets JVM unit tests. UI is also covered by Roborazzi screenshot tests (§15.4), which the agent records and inspects. The camera is verified by the human with the milestone checklist.
 9. **Device testing:** if a phone is connected (`adb devices`), the agent may `installDebug` and read `adb logcat` for crashes. It must not change device settings.
 10. **Ask the human only** when a choice changes the product (naming, scope, look). Otherwise pick the option most consistent with this README and log it.
 11. **Never lose user data:** any schema change requires a Room migration (no `fallbackToDestructiveMigration`).
@@ -784,6 +810,15 @@ Rules Claude follows while building this app:
 | 2026-10-20 | Portrait lock kept; lint `LockedOrientationActivity` / `DiscouragedApi` suppressed on `MainActivity` | Portrait-only is a product decision (§1). Android 16+ only ignores it on large screens (≥ 600 dp), not on the Pixel 9. |
 | 2026-10-20 | Splash icon (`drawable/ic_splash`) is a layer-list wrapping the launcher foreground | One camera drawing for the icon and splash, so they can't drift apart. |
 | 2026-10-20 | The Gradle deprecation warning ("Configuration.setVisible", removed in Gradle 11) is left as is | It comes from AGP 9.4.1 itself, not our build scripts; it goes away when AGP updates. |
+| 2026-10-20 | **Roborazzi 1.76.0** + Robolectric 4.17 for JVM screenshot tests; PNGs committed in `app/src/test/screenshots/` | Promised for M1. The agent can see every screen without a phone, and `verifyRoborazziDebug` catches visual regressions. Latest stable releases. |
+| 2026-10-20 | Espresso core pinned to **3.7.0** in tests; androidx.test ext-junit 1.3.0 | Roborazzi pulls Espresso 3.5.1, which crashes on API 34+ framework jars (`InputManager.getInstance` is gone). ext-junit provides `AndroidJUnit4`. |
+| 2026-10-20 | Unit tests run with `--add-exports/--add-opens java.base/jdk.internal.access=ALL-UNNAMED` | Robolectric's FileDescriptor interceptor needs them on JDK 21 for the API 37 framework. |
+| 2026-10-20 | Reduce motion **freezes** particles in place instead of hiding them (§6.7) | Stopping the motion is what matters; still hearts and stars keep Home from looking empty. |
+| 2026-10-20 | Motion tokens extended: `floatSpin` (linear 24 s turn), `release` spring, `BobMillis` 2.6 s (§7) | An ease-in-out spin would pause on every turn, a 6–12 s bob is too slow to read as bobbing, and the A3 overshoot needs its own lively spring. |
+| 2026-10-20 | Home data comes through a `HomeSource` interface, with an `EmptyHomeSource` stub until M3/M5 | Home's badge, strip peek and draft card can be built and previewed now, and light up later with no UI changes. |
+| 2026-10-20 | Placeholder screens walk the real flow (Setup → Capture → Pick → Result, Album → Detail → Edit) | Every Nav key and predictive back can be tried before the real screens exist. |
+| 2026-10-20 | Brand colours with no Material slot (mint, sky, Home gradient, raised surface) live in `BoothExtraColors` (`BoothTheme.extraColors`) | Keeps the §6.1 palette in one place for light and dark. The dark gradient ends in plum `#3A2342`, and raised controls use `#3B3141` so they stand out on midnight. |
+| 2026-10-20 | Decorative icons next to a text label (settings rows, the My Album button) use `contentDescription = null`; every icon button and standalone icon has one | Otherwise TalkBack reads each label twice. |
 
 ---
 
