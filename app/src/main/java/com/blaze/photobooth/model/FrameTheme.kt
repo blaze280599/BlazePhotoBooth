@@ -22,7 +22,8 @@ enum class FrameTheme(
         listOf(0xFFFFFFFF.toInt(), 0xCCFFFFFF.toInt()),
     ),
     Strawberry(
-        "strawberry", 0xFFFFD6E3.toInt(), 0xFFFFB8CF.toInt(), 0xFFD6336C.toInt(), Decoration.Hearts,
+        // Ink #C02660: the footer stays ≥ 3:1 on the gradient's deeper pink bottom (§6.7; #D6336C was 2.9:1).
+        "strawberry", 0xFFFFD6E3.toInt(), 0xFFFFB8CF.toInt(), 0xFFC02660.toInt(), Decoration.Hearts,
         listOf(0xFFFF6F9C.toInt(), 0xFFFFFFFF.toInt(), 0xFFE84A7F.toInt()),
     ),
     Cloud(

@@ -9,7 +9,11 @@ import androidx.compose.ui.graphics.Color
 // Brand palette, README §6.1. Dynamic colour is off on purpose.
 
 // Light ("strawberry milk")
+/** The bubblegum brand pink. Decor only in light mode (particles, blob, confetti): as text it's under 3:1 on cream. */
 val Strawberry = Color(0xFFF0628F)
+
+/** Light `primary`: the same strawberry, deep enough for text and white labels (≥ 4.5:1 on every light surface, §6.7). */
+val StrawberryInk = Color(0xFFC2305E)
 val StrawberryMilk = Color(0xFFFFD6E3)
 val Butter = Color(0xFFF5C84C)
 val Lavender = Color(0xFF9C83F0)
@@ -34,7 +38,7 @@ val MintDark = Color(0xFF7FCFAA)
 val SkyDark = Color(0xFF86BDEB)
 
 internal val LightBoothColors = lightColorScheme(
-    primary = Strawberry,
+    primary = StrawberryInk,
     onPrimary = Color.White,
     primaryContainer = StrawberryMilk,
     onPrimaryContainer = Color(0xFF6B1534),
@@ -53,7 +57,7 @@ internal val LightBoothColors = lightColorScheme(
     onSurface = Cocoa,
     surfaceVariant = Color(0xFFFBE4EA),
     onSurfaceVariant = Color(0xFF6E5A62),
-    surfaceTint = Strawberry,
+    surfaceTint = StrawberryInk,
     inverseSurface = Cocoa,
     inverseOnSurface = Color(0xFFFFF0F3),
     surfaceBright = Cream,
@@ -72,7 +76,8 @@ internal val DarkBoothColors = darkColorScheme(
     onPrimary = OnStrawberryDark,
     primaryContainer = Color(0xFF6B2142),
     onPrimaryContainer = Color(0xFFFFD9E4),
-    inversePrimary = Strawberry,
+    // On the light inverse surface (the draft card's Continue): the bubblegum would be 2.6:1, this is 5.2:1.
+    inversePrimary = Color(0xFFB4285A),
     secondary = ButterDark,
     onSecondary = Midnight,
     secondaryContainer = Color(0xFF5A4710),
@@ -107,6 +112,8 @@ internal val DarkBoothColors = darkColorScheme(
  */
 @Immutable
 data class BoothExtraColors(
+    /** The brand pink for decoration (particles, the blob, confetti, heart bursts); never for text. */
+    val candy: Color,
     val mint: Color,
     val sky: Color,
     val gradientTop: Color,
@@ -116,6 +123,7 @@ data class BoothExtraColors(
 )
 
 internal val LightExtraColors = BoothExtraColors(
+    candy = Strawberry,
     mint = Mint,
     sky = Sky,
     gradientTop = Cream,
@@ -124,6 +132,7 @@ internal val LightExtraColors = BoothExtraColors(
 )
 
 internal val DarkExtraColors = BoothExtraColors(
+    candy = StrawberryDark,
     mint = MintDark,
     sky = SkyDark,
     gradientTop = Midnight,

@@ -58,12 +58,16 @@ object TestArt {
         BitmapOps.decode(open = { context.assets.open((location as ArtworkLocation.Asset).path) }, maxWidth = maxWidth)
 
     /** Renders [spec] at [scale] (1 = export size) into a fresh bitmap. */
-    fun render(context: Context, spec: StripSpec, photos: List<Bitmap?>, scale: Float): Bitmap {
+    fun render(context: Context, spec: StripSpec, photos: List<Bitmap?>, scale: Float): Bitmap =
+        renderWith(StripRenderer.get(context), spec, photos, scale)
+
+    /** [render] with a given [renderer] (e.g. one built on other resources). */
+    fun renderWith(renderer: StripRenderer, spec: StripSpec, photos: List<Bitmap?>, scale: Float): Bitmap {
         val size = spec.canvasSize
         val bitmap = createBitmap((size.width * scale).toInt(), (size.height * scale).toInt())
         val canvas = Canvas(bitmap)
         canvas.scale(scale, scale)
-        StripRenderer.get(context).draw(canvas, spec, photos)
+        renderer.draw(canvas, spec, photos)
         return bitmap
     }
 
