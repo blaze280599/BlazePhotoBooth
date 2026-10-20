@@ -799,7 +799,8 @@ private fun <T> Segmented(
                 // Long labels ("Squad (3+)") shrink back to fit with big fonts rather than being cut off.
                 label = {
                     when {
-                        fullWidth -> FitText(label(value), maxLines = 2)
+                        // Big fonts: every segment gets two lines, so the three are the same height.
+                        fullWidth && isLargeFont() -> Text(label(value), maxLines = 2, minLines = 2, textAlign = TextAlign.Center)
                         isLargeFont() -> Text(label(value), maxLines = 1)
                         else -> FitText(label(value))
                     }

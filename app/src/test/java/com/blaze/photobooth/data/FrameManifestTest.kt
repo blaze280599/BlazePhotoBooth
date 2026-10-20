@@ -16,16 +16,33 @@ class FrameManifestTest {
     private val frames = FrameRepository.parseManifest(File("src/main/assets/frames/frames.json").readText())
 
     @Test
-    fun herFiveFramesInCarouselOrder() {
+    fun herSevenFramesInCarouselOrder() {
+        // Her first five (v1.0), then the two Molang frames (v1.1).
         assertEquals(
-            listOf("lilac-pals", "usagi-gold", "ikmyeong-night", "blossom-picnic", "rribbitt-sky").map(FrameId::asset),
+            listOf("lilac-pals", "usagi-gold", "ikmyeong-night", "blossom-picnic", "rribbitt-sky", "molang-pineapple", "molang-pool")
+                .map(FrameId::asset),
             frames.map { it.id },
         )
     }
 
     @Test
     fun lilacPalsHasThreeWindowsTheOthersFour() {
-        assertEquals(listOf(3, 4, 4, 4, 4), frames.map { it.slots.size })
+        assertEquals(listOf(3, 4, 4, 4, 4, 4, 4), frames.map { it.slots.size })
+    }
+
+    @Test
+    fun theMolangFramesAreTwoByTwoGrids() {
+        for (id in listOf("molang-pineapple", "molang-pool")) {
+            val frame = frames.first { it.id == FrameId.asset(id) }
+            assertEquals(id, 1800 to 2695, frame.width to frame.height)
+            val s = frame.slots
+            // Two rows of two: tops match in a row, lefts match in a column.
+            assertEquals(id, s[0].y, s[1].y)
+            assertEquals(id, s[2].y, s[3].y)
+            assertEquals(id, s[0].x, s[2].x)
+            assertEquals(id, s[1].x, s[3].x)
+            assertTrue(id, s[1].x > s[0].x && s[2].y > s[0].y)
+        }
     }
 
     @Test

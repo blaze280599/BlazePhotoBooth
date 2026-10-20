@@ -62,7 +62,9 @@ class FrameRepositoryTest {
         hiddenBundled,
     )
 
-    private val bundledIds = listOf("lilac-pals", "usagi-gold", "ikmyeong-night", "blossom-picnic", "rribbitt-sky").map(FrameId::asset)
+    private val bundledIds = listOf(
+        "lilac-pals", "usagi-gold", "ikmyeong-night", "blossom-picnic", "rribbitt-sky", "molang-pineapple", "molang-pool",
+    ).map(FrameId::asset)
 
     @Test
     fun theCarouselSkipsHiddenAndDeletedFrames() = runTest {
@@ -83,8 +85,8 @@ class FrameRepositoryTest {
     fun manageFramesListsBundledThenImportedButNotDeleted() = runTest {
         val rows = repo.managed.first()
         assertEquals(bundledIds + listOf(shown.id, hidden.id), rows.map { it.frame.id })
-        assertEquals(listOf(false, true, false, false, false, false, true), rows.map { it.hidden })
-        assertEquals(listOf(true, true, true, true, true, false, false), rows.map { it.bundled })
+        assertEquals(listOf(false, true, false, false, false, false, false, false, true), rows.map { it.hidden })
+        assertEquals(List(bundledIds.size) { true } + listOf(false, false), rows.map { it.bundled })
     }
 
     @Test
@@ -92,6 +94,6 @@ class FrameRepositoryTest {
         hiddenBundled.value = emptySet()
         custom.value = custom.value.map { if (it.frame == hidden) it.copy(visibility = FrameVisibility.Shown) else it }
         val ids = repo.options.first().map { it.id }
-        assertEquals(bundledIds + listOf(shown.id, hidden.id), ids.take(7))
+        assertEquals(bundledIds + listOf(shown.id, hidden.id), ids.take(bundledIds.size + 2))
     }
 }
