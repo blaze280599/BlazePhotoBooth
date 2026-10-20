@@ -18,6 +18,9 @@
         android:theme="@style/Theme.Booth.Splash"
         tools:targetApi="37">
 
+        <!-- Lets adb's shell trace and measure the release build (README §15.5); grants nothing to other apps. -->
+        <profileable android:shell="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

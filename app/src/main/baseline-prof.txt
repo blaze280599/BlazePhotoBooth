@@ -1,0 +1,7 @@
+# Baseline profile for Blaze Booth's own code (README §15.5, M9). AGP expands the wildcards against the app's
+# classes and ships the result in the APK (assets/dexopt/baseline.prof) next to the libraries' own profiles
+# (Compose, lifecycle, …). ProfileInstaller hands it to Android at first launch, so the app is compiled ahead of
+# time instead of running uncompiled until the phone's overnight compile.
+# The app is small, so every class and method is included (H = hot, S = startup, P = post-startup).
+HSPLcom/blaze/photobooth/**;->**(**)**
+Lcom/blaze/photobooth/**;

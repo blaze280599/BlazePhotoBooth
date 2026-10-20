@@ -62,7 +62,7 @@ class ResultViewModel(
             val strip = try {
                 withContext(io) {
                     val file = sessions.files.strip(sessionId)
-                    BitmapOps.decode(open = { file.inputStream() }, maxWidth = DisplayMaxPx).asImageBitmap()
+                    BitmapOps.forScreen(BitmapOps.decode(open = { file.inputStream() }, maxWidth = DisplayMaxPx)).asImageBitmap()
                 }
             } catch (e: Exception) {
                 Log.e("ResultViewModel", "No strip for $sessionId", e)

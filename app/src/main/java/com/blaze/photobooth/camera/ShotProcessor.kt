@@ -40,7 +40,8 @@ class ShotProcessor(
             }
             val out = transform(source, ShotGeometry.plan(source.width, source.height, rotation, mirror, aspect))
             source.recycle()
-            out to thumbnail(out)
+            // The tray shows it as soon as the shot lands (A6), so its GPU upload starts now.
+            out to BitmapOps.forScreen(thumbnail(out))
         }
         val shot = DraftShot(index, upright.width, upright.height)
         try {

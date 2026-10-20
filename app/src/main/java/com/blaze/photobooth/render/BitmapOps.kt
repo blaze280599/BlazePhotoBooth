@@ -62,6 +62,13 @@ object BitmapOps {
         return bitmap.scale((bitmap.width * f).roundToInt().coerceAtLeast(1), (bitmap.height * f).roundToInt().coerceAtLeast(1))
     }
 
+    /**
+     * For a bitmap that's about to be shown (and never changed again): starts its upload to the GPU now, in the
+     * background, instead of in the first frame that draws it (M9: five photos uploading at once made Edit's first
+     * frame miss its deadline). Returns [bitmap].
+     */
+    fun forScreen(bitmap: Bitmap): Bitmap = bitmap.apply { prepareToDraw() }
+
     /** Preview bitmaps (Setup, Pick) are at most this many pixels on their long edge (§10). */
     const val PreviewMaxPx = 600
 }
