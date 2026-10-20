@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -211,6 +212,13 @@ private fun PreviewArea(state: SetupUiState, onBack: () -> Unit, modifier: Modif
     val reduceMotion = LocalReduceMotion.current
     // §4.2: the strip leans a little (±3°) as the phone tilts, and drifts a few dp for depth. Off with reduce motion.
     val tilt = rememberDeviceTilt(enabled = !reduceMotion)
+    val titleStyle = MaterialTheme.typography.titleLarge
+    // The strip starts under the title: 56 dp at normal sizes, more with big fonts so a 200% title never touches it.
+    // Fredoka's descenders ("y") hang below its line box, so the room is measured from the font size too.
+    val previewTop = with(LocalDensity.current) {
+        val title = maxOf(titleStyle.lineHeight.toDp(), titleStyle.fontSize.toDp() * DescenderRoom)
+        maxOf(PreviewTop, TitleTop + title + TitleGap)
+    }
     Box(modifier) {
         val spec = state.preview
         if (spec != null) {
@@ -233,7 +241,7 @@ private fun PreviewArea(state: SetupUiState, onBack: () -> Unit, modifier: Modif
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 28.dp, end = 28.dp, top = 56.dp, bottom = 20.dp)
+                    .padding(start = 28.dp, end = 28.dp, top = previewTop, bottom = 20.dp)
                     .graphicsLayer {
                         // Read only here: a sensor update redraws this layer and never recomposes (§7 performance).
                         val rx = tilt.rotationX
@@ -269,15 +277,25 @@ private fun PreviewArea(state: SetupUiState, onBack: () -> Unit, modifier: Modif
         }
         Text(
             text = stringResource(R.string.setup_title),
-            style = MaterialTheme.typography.titleLarge,
+            style = titleStyle,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 16.dp)
+                .padding(top = TitleTop)
                 .semantics { heading() },
         )
     }
 }
+
+/** The strip preview's top edge at normal font sizes, under the back button and title. */
+private val PreviewTop = 56.dp
+
+/** The title's top padding, and the least room between the title's line and the strip (M9: 200% font). */
+private val TitleTop = 16.dp
+private val TitleGap = 10.dp
+
+/** Fredoka's full glyph height (ascender to descender) as a share of its font size. */
+private const val DescenderRoom = 1.35f
 
 /** How far the preview drifts per degree of lean: at most 3 × 2 = 6 dp. */
 private val ParallaxPerDegree = 2.dp
