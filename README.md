@@ -132,7 +132,7 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
 - **Sequence:** tap the shutter, then countdown → capture → 1.2 s "nice!" beat → next countdown, repeated automatically until all N shots are taken, just like a real booth. The user can pause or resume at any time.
 - **Countdown:** a giant number (Fredoka Bold, 160 sp) pops in with an overshoot spring while a ring drains around it. Each tick plays a soft beep and a haptic `CLOCK_TICK`. The last second turns the ring pink and gives a little camera wiggle.
 - **Capture moment:** a white flash overlay (≈ 220 ms ease-out), the shutter sound (`MediaActionSound`), a `CONFIRM` haptic, and a mini thumbnail that **flies along an arc into its tray slot**. Front camera uses a **screen flash** (full white plus maximum brightness) when the scene is dark.
-- **Cheerful prompts** rotate above the countdown: *"Say kimchi!"*, *"Heart hands! 🫶"*, *"Look surprised!"*, *"Peace ✌️"*, *"Cheek poke!"*.
+- **Cheerful prompts** rotate above the countdown: *"Say kimchi!"*, *"Heart hands! 🫶"*, *"Look surprised!"*, *"Peace ✌️"*, *"Cheek poke!"*. *Replaced in M10 by **pose ideas** (§5.6): a pose card with a pose plan per session, chosen for who's in the booth.*
 - **When all shots are done**, the view auto-advances to Pick with a container transform from the tray.
 - *As built in M3:* the viewfinder sits between the top bar and the tray on the app's gradient, with an 8 dp border in the frame's colour (a theme's top background colour; for her frames, the average of the artwork's solid pixels). It springs (`Gentle`) to the next slot's shape during the beat. The countdown ring and number are sized to fit the viewfinder (up to 160 sp, ignoring font scale). The prompt pill sits at the top of the viewfinder, and "Nice! ✿" pops in during the beat. Bonus shots show "5 / 6 ✦ bonus" in the pill. While idle or paused, a hint pill says what to do. The flying thumbnail is a 650 ms quadratic Bézier that lifts 120 dp above the start. The **A7 container transform to Pick is not built yet**: Pick is still a placeholder, so it moves to M4 with the real Pick. Pausing, backgrounding (§13) and failed shots all pause; resuming always starts a fresh countdown. ✕ (or back) with shots asks *"Leave the booth?"* and then discards the draft; with no shots it leaves silently. Low storage (< 50 MB allocatable) asks before the first shot. The camera permission (§12) and camera errors (§13) replace the viewfinder with a card. Sounds, haptics and the screen flash read `BoothSettings` (§11.6), which default to on until M8.
 - *Since M4:* on the back camera, a **flash toggle** (⚡ off / ⚡A auto) sits left of the flip button. It changes `ImageCapture.flashMode` at once (no rebind) and is remembered like Setup's Flash row. **Retake one:** `Capture(retakeIndex = k)` shoots only shot *k* (its slot's shape, one slot in the tray, the pill says "Retake · shot 3") and replaces it in the draft; ✕ or back returns to Pick without asking and keeps the old shot. The tray carries the A7 shared-bounds key, so when the last shot lands it grows into Pick's tray.
@@ -379,6 +379,93 @@ Five frames from three images she picked (2026-10-20). Sources are in `photo-fra
 **Known limits:** characters that stood *above* the strips in the promo image are cropped off. On Rribbitt Sky, the faint diamond pattern behind the old logo is smoothed over.
 
 **Personal use only:** these designs are third-party artwork (Pinterest saves; the Play in the Box frames are that booth brand's official art, and Usagi is a Chiikawa character). They're fine in a privately sideloaded gift app, but **must not ship in a public Play Store release**.
+
+### 5.6 Pose ideas (M10)
+Real Korean booths are half about the poses. Blaze Booth suggests one pose per shot, chosen for **who's in the booth**. This is picked by hand rather than detected; camera-based people counting is a possible later step (§19).
+
+#### 5.6.1 How it works
+- **Who's in the booth?** A new row in Setup → Options: **Just me · Two of us · Squad (3+)**, default *Just me*, persisted in `BoothConfig`. A small 👤 / 👥 / 👨‍👩‍👧 icon shows on the "Let's go!" button.
+- **Pose plan:** when a session begins, the app draws one pose per shot (cuts + bonus) from the matching pool (§5.6.2), **with no repeats** in that session:
+  - **Shot 1** is an easy warm-up (mood *cute*).
+  - **The last cut** (shot index `cuts − 1`) is a *love* pose: the strip ends on a heart.
+  - **No two shots in a row share a mood** (cute · silly · cool · love), so a strip has variety.
+  - **Two of us:** about 60% duo poses and the rest from the solo list (they work for two). **Squad:** about 60% group poses, the rest from the solo list.
+  - The plan is saved in `draft.json` (`posePlan: List<String>` of pose ids), so it survives process death and draft recovery. **Retake one** shows the pose originally planned for that shot.
+- **Pose card** (replaces the old prompt pill):
+  - **Before the first shot:** a large card at the top of the viewfinder: big emoji, the pose name in Fredoka, an optional Korean name in Gaegu (e.g. *"Cheek hearts · 볼하트"*), and *"First up"*.
+  - **During the countdown:** the same card, a little smaller, for the current shot.
+  - **During the 1.2 s "Nice!" beat:** a preview, *"Next: …"*, so they can get ready.
+  - **Tap the card (🔀)** to swap the current pose for another unused one from the pool (`SEGMENT_TICK` haptic). The swap is saved to the plan.
+  - Motion: the card pops in with *Bouncy* and cross-fades on change. Reduce-motion means a plain fade.
+  - TalkBack announces the pose politely when each countdown starts.
+- **Settings → "Pose ideas"** switch (default **on**). Off: no pose card, just the countdown.
+- **Content lives in resources:** each pose is an id plus `pose_<id>_name`, an optional `pose_<id>_ko`, an emoji and tags (`who`, `mood`) in a small Kotlin catalogue (`model/Poses.kt`). The text lives in `strings.xml`, so poses can be added later without touching the logic.
+
+#### 5.6.2 Pose catalogue (v1: 51 poses)
+**Solo, also fine for everyone together (25):**
+| id | Pose | 한국어 | Mood |
+|---|---|---|---|
+| `smile` | 😁 Biggest smile ever | | cute (warm-up) |
+| `cheek-heart` | 🫶 Cheek hearts | 볼하트 | cute |
+| `finger-heart` | 🫰 Finger heart | 손하트 | love |
+| `chin-v` | ✌️ V under the chin | 턱브이 | cute |
+| `flower-cup` | 🌸 Flower cup, hands under your chin | 꽃받침 | cute |
+| `puffy-cheeks` | 🐡 Puffy cheeks! | 볼빵빵 | silly |
+| `cat-paws` | 🐱 Cat paws, meow! | 냥냥 | cute |
+| `bunny-ears` | 🐰 Bunny ears! | | cute |
+| `head-heart` | 💗 Big heart over your head | 머리 위 하트 | love |
+| `blow-kiss` | 😘 Blow a kiss! | | love |
+| `wink` | 😉 Wink! | | cool |
+| `surprised` | 😮 Look SO surprised! | | silly |
+| `thinking` | 🤔 Deep in thought… | | silly |
+| `hand-glasses` | 😎 Hand sunglasses | | cool |
+| `ok-eye` | 👌 OK sign over one eye | | cool |
+| `point-camera` | 👉 Point at the camera! | | cool |
+| `laugh` | 😂 Laugh at the funniest joke | | silly |
+| `grumpy` | 😤 Cute grumpy face | | silly |
+| `sleepy` | 😴 Sooo sleepy… | | silly |
+| `chin-rest` | 🙂 Chin on your hands | 턱괴기 | cute |
+| `peek` | 🙈 Peek through your fingers | 부끄 | cute |
+| `tongue` | 😛 Tongue out! | | silly |
+| `idol-fist` | ✊ Idol pose, fist under your chin | | cool |
+| `hair-flip` | 💁 Hair flip, so fabulous | | cool |
+| `aegyo` | ✨ Maximum aegyo! | 애교 | cute |
+
+**Two of us (14):**
+| id | Pose | 한국어 | Mood |
+|---|---|---|---|
+| `shared-heart` | 💕 One heart together, half each | 반쪽 하트 | love |
+| `cheek-to-cheek` | 🥰 Cheek to cheek | | love |
+| `back-to-back` | 😎 Back to back, arms crossed | | cool |
+| `foreheads` | 💞 Foreheads together | | love |
+| `cheek-kiss` | 😚 A kiss on the cheek | 뽀뽀 | love |
+| `cheek-pinch` | 🤏 Pinch each other's cheeks | | silly |
+| `secret` | 🤫 Whisper a secret | | silly |
+| `back-hug` | 🤗 Back hug | 백허그 | love |
+| `bunny-swap` | 🐰 Give each other bunny ears | | silly |
+| `pretend-fight` | 🥊 Pretend fight! | | silly |
+| `point-each` | 👉👈 Point at each other | | cute |
+| `mirror` | 🪞 Mirror each other | | cool |
+| `face-squish` | 🫠 Squish your faces together | | silly |
+| `gaze` | 👀 Look at each other, not the camera | | love |
+
+**Squad, 3+ (12):**
+| id | Pose | 한국어 | Mood |
+|---|---|---|---|
+| `squish-in` | 🤭 Everyone squish in! | | cute |
+| `size-order` | 📏 Small, medium, large! | | silly |
+| `pyramid` | 🔺 A pyramid of faces | | silly |
+| `group-heart` | 💖 One giant group heart | | love |
+| `point-one` | 👇 Everyone point at one person | | silly |
+| `look-up` | ⬆️ Everyone look up! | | cool |
+| `same-pose` | 🪄 Same pose, different faces | | silly |
+| `totem` | 🗿 Stack your faces like a totem | | silly |
+| `gasp` | 😱 Everyone gasp! | | silly |
+| `finger-hearts` | 🫰 Finger hearts, everyone! | | love |
+| `hug-sandwich` | 🥪 Hug sandwich! | | love |
+| `wave` | 👋 Wave bye-bye! | | cute |
+
+The largest session is 10 shots (Six Grid + 4 bonus), and every pool is big enough to fill it with no repeats while keeping the mood rules. If a rule can't be met, the plan relaxes the "no repeated mood" rule first and never repeats a pose.
 
 ---
 
@@ -990,6 +1077,7 @@ Each milestone ends with a **green build** (`assembleDebug testDebugUnitTest lin
 | **M7** ✅ | Her frames ♡ | Import flow and slot editor (§4.9) ✅, `frames` table ✅, Manage frames in Settings ✅, frame hide/cleanup rules ✅. Bundled frames are already processed (§5.5.6). New files in `photo-frames/` can arrive at any time: process them (§5.5.5) and show the human the previews for approval | Her frames appear first in Setup; a strip shot with one looks right on the phone; she can import a new frame on the phone ✅ (2026-10-20) |
 | **M8** ✅ | Polish | Animation pass (§7 complete, §7.1 audit) ✅, dark mode and contrast ✅, reduce-motion ✅, TalkBack labels ✅, font scale 200% ✅, copy review ✅, haptics check ✅, settings sheet polish (the switches work since M6) ✅, draft recovery (since M3) ✅ | Checklist in §6.7 and §7 passes on device ✅ (2026-10-20) |
 | **M9** ✅ | Hardening & release | Edge cases (§13, every row verified) ✅, process-death test (`adb shell am kill`, §15.6) ✅, StrictMode ✅, R8 release build ✅, baseline profile ✅, performance check (§15.6) ✅, big-font Setup title ✅, backup rules ✅, install guide (§15.5) ✅ | `assembleRelease` installs and runs; no crashes in the release smoke test on the Pixel 9 ✅ (2026-10-20) |
+| **M10** | Pose ideas (v1.1.0) | Pose catalogue (§5.6.2) in resources, "Who's in the booth?" in Setup → Options, a pose plan per session saved in the draft, the pose card (first up, countdown, "Next:", tap to swap), "Pose ideas" switch in Settings, TalkBack announcement, tests (plan rules, no repeats, persistence, swap), version **1.1.0 / versionCode 2**, a new release APK installed **over** v1.0.0 (album kept) | Every session shows varied poses that suit who's in the booth; the same plan survives retake and process death; the build is green; `release/BlazeBooth-1.1.0.apk` exists |
 
 ---
 
@@ -1155,6 +1243,7 @@ Rules Claude follows while building this app:
 | 2026-10-20 | `BoothApp.onTrimMemory` empties the frame-artwork cache (half while on screen) | It can hold up to 48 MB and is quick to rebuild; Coil already trims its own cache. |
 | 2026-10-20 | Device transfer also takes `files/frames/`; the cloud backup leaves out the database and `frames/` (only settings go to the cloud) | Before, a new phone got her imported frames' rows without their pictures, and a cloud restore would have brought album rows without photos. |
 | 2026-10-20 | Setup's strip starts below the title's real height (≥ 56 dp; font size × 1.35 + 10 dp) | At 200% font the title's "y" touched the strip; Fredoka's descenders hang below its line box. At normal sizes nothing moves. |
+| 2026-10-20 | M10 pose ideas use a **manual** "Who's in the booth?" choice, not camera-based people counting | Her request was poses that suit the number of people. A manual choice delivers that with no ML, no extra APK size and no accuracy issues. ML Kit face counting stays a future option (§19). |
 ---
 
 ## 19. Out of scope / future ideas
@@ -1162,6 +1251,8 @@ Rules Claude follows while building this app:
 Not in v1, listed so they aren't accidentally half-built:
 - **Live/GIF strips:** a 1-second clip per cut, exported as an animated GIF or MP4 (Photoism-style "live photo").
 - **Beauty filter / skin smoothing** (needs face detection via ML Kit).
+- **Automatic people counting for pose ideas:** ML Kit face detection on a CameraX `ImageAnalysis` stream, smoothed over ~1 s, choosing the §5.6 pool automatically. It's on-device and offline, adds a few MB, and counts faces rather than bodies.
+- **Illustrated pose cards** (small code-drawn characters showing each pose) instead of emoji.
 - **AR stickers or face-tracking props.**
 - **Draggable stickers and drawing** on the finished strip.
 - **QR "download from booth" flow, cloud sync, accounts.**
