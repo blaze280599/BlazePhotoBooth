@@ -1,0 +1,171 @@
+[
+  {
+    "id": "lilac-pals",
+    "name": "Lilac Pals",
+    "file": "lilac-pals/frame.png",
+    "thumb": "lilac-pals/thumb.png",
+    "width": 1200,
+    "height": 3142,
+    "slots": [
+      {
+        "x": 58,
+        "y": 69,
+        "w": 1081,
+        "h": 874
+      },
+      {
+        "x": 58,
+        "y": 956,
+        "w": 1081,
+        "h": 874
+      },
+      {
+        "x": 58,
+        "y": 1840,
+        "w": 1081,
+        "h": 874
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "usagi-gold",
+    "name": "Usagi",
+    "file": "usagi-gold/frame.png",
+    "thumb": "usagi-gold/thumb.png",
+    "width": 1200,
+    "height": 3658,
+    "slots": [
+      {
+        "x": 75,
+        "y": 90,
+        "w": 1050,
+        "h": 726
+      },
+      {
+        "x": 75,
+        "y": 843,
+        "w": 1050,
+        "h": 726
+      },
+      {
+        "x": 75,
+        "y": 1595,
+        "w": 1050,
+        "h": 772
+      },
+      {
+        "x": 75,
+        "y": 2394,
+        "w": 1050,
+        "h": 703
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "ikmyeong-night",
+    "name": "Ikmyeong Night",
+    "file": "ikmyeong-night/frame.png",
+    "thumb": "ikmyeong-night/thumb.png",
+    "width": 1200,
+    "height": 3633,
+    "slots": [
+      {
+        "x": 76,
+        "y": 76,
+        "w": 1056,
+        "h": 735
+      },
+      {
+        "x": 76,
+        "y": 882,
+        "w": 1056,
+        "h": 735
+      },
+      {
+        "x": 68,
+        "y": 1695,
+        "w": 1064,
+        "h": 736
+      },
+      {
+        "x": 76,
+        "y": 2501,
+        "w": 1048,
+        "h": 735
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "blossom-picnic",
+    "name": "Blossom Picnic",
+    "file": "blossom-picnic/frame.png",
+    "thumb": "blossom-picnic/thumb.png",
+    "width": 1200,
+    "height": 3584,
+    "slots": [
+      {
+        "x": 108,
+        "y": 91,
+        "w": 984,
+        "h": 685
+      },
+      {
+        "x": 99,
+        "y": 894,
+        "w": 1002,
+        "h": 677
+      },
+      {
+        "x": 99,
+        "y": 1697,
+        "w": 1002,
+        "h": 677
+      },
+      {
+        "x": 99,
+        "y": 2491,
+        "w": 1002,
+        "h": 661
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "rribbitt-sky",
+    "name": "Rribbitt Sky",
+    "file": "rribbitt-sky/frame.png",
+    "thumb": "rribbitt-sky/thumb.png",
+    "width": 1200,
+    "height": 3633,
+    "slots": [
+      {
+        "x": 84,
+        "y": 68,
+        "w": 1048,
+        "h": 727
+      },
+      {
+        "x": 84,
+        "y": 882,
+        "w": 1048,
+        "h": 727
+      },
+      {
+        "x": 84,
+        "y": 1687,
+        "w": 1048,
+        "h": 727
+      },
+      {
+        "x": 84,
+        "y": 2501,
+        "w": 1048,
+        "h": 727
+      }
+    ],
+    "textArea": null
+  }
+]

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon silhouette: the system tints it, only alpha matters. Lens and heart are cut out with evenOdd. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M45,32h18a3,3 0,0 1,3 3v2h-24v-2a3,3 0,0 1,3 -3z" />
+    <!-- body with lens hole and flash hole -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M39,37h30a11,11 0,0 1,11 11v15a11,11 0,0 1,-11 11h-30a11,11 0,0 1,-11 -11v-15a11,11 0,0 1,11 -11z
+            M54,56m-14,0a14,14 0,1 0,28 0a14,14 0,1 0,-28 0
+            M69,45m-2.5,0a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0" />
+    <!-- lens with heart cut out -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M54,56m-10.5,0a10.5,10.5 0,1 0,21 0a10.5,10.5 0,1 0,-21 0
+            M54,62.5C47.5,58.4 46.6,54.2 48.8,52C50.6,50.3 52.9,50.9 54,52.8C55.1,50.9 57.4,50.3 59.2,52C61.4,54.2 60.5,58.4 54,62.5z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M73,29Q73,33 77,33Q73,33 73,37Q73,33 69,33Q73,33 73,29z" />
+</vector>

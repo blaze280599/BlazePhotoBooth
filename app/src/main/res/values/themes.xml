@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Booth" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/booth_window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.Booth.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/booth_window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Booth</item>
+    </style>
+</resources>

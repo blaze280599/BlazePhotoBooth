@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Frame pipeline review images (regenerate with tools/frames/process_frames.py)
+/photo-frames/_previews/
+
+# IDEs and tooling
+/.vscode/
+/.venv/
+__pycache__/

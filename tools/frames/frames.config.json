@@ -1,0 +1,159 @@
+[
+  {
+    "id": "lilac-pals",
+    "name": "Lilac Pals",
+    "source": "photo-frames/download.jpg",
+    "rotate": 0.55,
+    "crop": [
+      145,
+      85,
+      593,
+      1258
+    ],
+    "window_color": [
+      255,
+      255,
+      255
+    ],
+    "tolerance": [
+      16,
+      48
+    ]
+  },
+  {
+    "id": "usagi-gold",
+    "name": "Usagi",
+    "source": "photo-frames/photobooth usagi*.jpg",
+    "crop": [
+      45,
+      28,
+      356,
+      976
+    ],
+    "window_color": [
+      0,
+      0,
+      0
+    ],
+    "tolerance": [
+      22,
+      62
+    ],
+    "erase": [
+      {
+        "rect": [
+          80,
+          3095,
+          640,
+          3320
+        ],
+        "tolerance": 12,
+        "grow": 8
+      },
+      {
+        "rect": [
+          440,
+          3320,
+          1125,
+          3560
+        ],
+        "tolerance": 12,
+        "grow": 8
+      }
+    ]
+  },
+  {
+    "id": "ikmyeong-night",
+    "name": "Ikmyeong Night",
+    "source": "photo-frames/*playinthebox*.jpg",
+    "crop": [
+      96,
+      229,
+      242,
+      671
+    ],
+    "window_color": [
+      116,
+      130,
+      77
+    ],
+    "tolerance": [
+      20,
+      50
+    ],
+    "erase": [
+      {
+        "rect": [
+          405,
+          3385,
+          795,
+          3590
+        ],
+        "mode": "all"
+      }
+    ]
+  },
+  {
+    "id": "blossom-picnic",
+    "name": "Blossom Picnic",
+    "source": "photo-frames/*playinthebox*.jpg",
+    "crop": [
+      294,
+      229,
+      442,
+      671
+    ],
+    "window_color": [
+      116,
+      130,
+      77
+    ],
+    "tolerance": [
+      20,
+      50
+    ],
+    "erase": [
+      {
+        "rect": [
+          390,
+          3430,
+          805,
+          3535
+        ],
+        "tolerance": 30,
+        "grow": 6
+      }
+    ]
+  },
+  {
+    "id": "rribbitt-sky",
+    "name": "Rribbitt Sky",
+    "source": "photo-frames/*playinthebox*.jpg",
+    "crop": [
+      493,
+      230,
+      639,
+      672
+    ],
+    "window_color": [
+      116,
+      130,
+      77
+    ],
+    "tolerance": [
+      20,
+      50
+    ],
+    "erase": [
+      {
+        "rect": [
+          400,
+          3380,
+          815,
+          3545
+        ],
+        "mode": "all"
+      }
+    ]
+  }
+]

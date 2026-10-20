@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window and splash background (cream); the Compose palette lives in ui/theme/Color.kt. -->
+    <color name="booth_window_background">#FFFFF7F3</color>
+</resources>
