@@ -146,4 +146,23 @@ class FrameImporterTest {
         assertEquals(2, frame.analysis.windows.size)
         assertTrue(frame.analysis.windows[0].right < frame.analysis.windows[1].x)
     }
+
+    /**
+     * §13: a picked file that isn't a picture the phone can decode fails with an ordinary exception, which Add frame
+     * shows as "Couldn't open that picture" (Pick another / Cancel); nothing is saved.
+     */
+    @Test
+    fun aFileThatIsntAPictureFailsGently() = runTest {
+        val file = tmp.newFile("not-a-picture.png").apply { writeText("this is not a picture") }
+        for (attempt in listOf<suspend () -> Unit>({ importer.quickPreview(Uri.fromFile(file)) }, { importer.open(Uri.fromFile(file)) })) {
+            val failure = try {
+                attempt()
+                null
+            } catch (e: Exception) {
+                e
+            }
+            assertTrue("decoding garbage must throw an Exception", failure != null)
+        }
+        assertTrue(store.frames.first().isEmpty())
+    }
 }

@@ -101,7 +101,7 @@ class SessionRepository(
     suspend fun finalizeDraft(render: suspend (draft: BoothDraft, dir: File) -> Unit): String = lock.withLock {
         draftStore.handOff { draft, dir ->
             render(draft, dir)
-            check(File(dir, SessionFileStore.StripName).isFile) { "No strip was rendered" }
+            check(withContext(io) { File(dir, SessionFileStore.StripName).isFile }) { "No strip was rendered" }
             val id = newId()
             val target = files.dir(id)
             val rows = rowsFor(draft, id, now = clock())
@@ -135,9 +135,10 @@ class SessionRepository(
                 check(staging.mkdirs()) { "Couldn't create $staging" }
             }
             render(staging)
-            check(File(staging, SessionFileStore.StripName).isFile && File(staging, SessionFileStore.ThumbName).isFile) {
-                "No strip was rendered"
+            val rendered = withContext(io) {
+                File(staging, SessionFileStore.StripName).isFile && File(staging, SessionFileStore.ThumbName).isFile
             }
+            check(rendered) { "No strip was rendered" }
             val updated = current.copy(
                 layoutId = edit.layoutId,
                 frameId = edit.frameId,

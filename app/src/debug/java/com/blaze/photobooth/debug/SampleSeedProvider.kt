@@ -42,7 +42,7 @@ import kotlin.random.Random
  * sample strips (generated "photos" with numbers, never people) spread over the last months, then deletes the
  * file. The agent creates the file with `adb shell run-as`, to test the album's months, filters and scrolling
  * without taking photos. Every seeded strip has the caption "sample ✿". Writing `clear` instead of a count soft-deletes
- * them all (purged on the next start).
+ * them all (purged on the next start). `delete <id> <id> …` soft-deletes exactly those strips (M9 clean-up).
  */
 class SampleSeedProvider : ContentProvider() {
 
@@ -82,6 +82,15 @@ private class SampleSeeder(private val c: AppContainer) {
         if (!trigger.isFile) return
         val request = trigger.readText().trim()
         trigger.delete()
+        if (request.startsWith(DeleteRequest)) {
+            // Soft-deletes exactly the listed session ids (the next start purges them); any other strip is untouched.
+            // M9's clean-up before the gift used it, so her real strip could never be hit by accident.
+            val wanted = request.removePrefix(DeleteRequest).split(' ', ',', '\n').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            val found = c.sessionRepository.sessions.first().map { it.id }.filter { it in wanted }
+            c.sessionRepository.softDelete(found)
+            Log.i(SampleSeedProvider.Tag, "Deleted ${found.size} of ${wanted.size} listed strips")
+            return
+        }
         if (request == ClearRequest) {
             // Soft-deletes every sample strip (caption "sample ✿"); the next start purges them. Nothing else is touched.
             val samples = c.sessionRepository.sessions.first().filter { it.caption == Caption }.map { it.id }
@@ -167,6 +176,7 @@ private class SampleSeeder(private val c: AppContainer) {
     companion object {
         const val Caption = "sample ✿"
         const val ClearRequest = "clear"
+        const val DeleteRequest = "delete "
         const val DefaultCount = 12
         const val MaxCount = 60
         const val ShotPx = 1000

@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug builds only (README §15.3): seeds pastel sample strips for testing the album on the phone, and lets
-     reduce motion be forced on or off without changing the phone's settings (§6.7). -->
+<!-- Debug builds only (README §15.3): seeds pastel sample strips for testing the album on the phone, lets
+     reduce motion be forced on or off without changing the phone's settings (§6.7), and turns on StrictMode (M9). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <!-- StrictMode first (the highest initOrder starts first), so it sees the other providers and startup. -->
+        <provider
+            android:name=".debug.StrictModeSetup"
+            android:authorities="${applicationId}.strictmode"
+            android:exported="false"
+            android:initOrder="1000" />
         <provider
             android:name=".debug.SampleSeedProvider"
             android:authorities="${applicationId}.sampleseed"

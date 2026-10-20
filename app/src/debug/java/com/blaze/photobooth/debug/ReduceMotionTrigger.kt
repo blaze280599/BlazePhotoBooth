@@ -4,6 +4,7 @@ import android.content.ContentProvider
 import android.content.ContentValues
 import android.database.Cursor
 import android.net.Uri
+import android.os.StrictMode
 import android.util.Log
 import com.blaze.photobooth.core.ReduceMotionOverride
 import java.io.File
@@ -17,7 +18,13 @@ class ReduceMotionTrigger : ContentProvider() {
 
     override fun onCreate(): Boolean {
         val file = File(context?.filesDir ?: return false, TriggerName)
-        val override = parse(if (file.isFile) file.readText() else null)
+        // A tiny file that must be read before the first frame; allowed so StrictMode's log stays about the app.
+        val policy = StrictMode.allowThreadDiskReads()
+        val override = try {
+            parse(if (file.isFile) file.readText() else null)
+        } finally {
+            StrictMode.setThreadPolicy(policy)
+        }
         ReduceMotionOverride.set(override)
         if (override != null) Log.i(Tag, "Reduce motion forced ${if (override) "on" else "off"} by $TriggerName")
         return true

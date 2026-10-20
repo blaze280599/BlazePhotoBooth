@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
-    <!-- Photos can exceed the 25 MB cloud backup quota, but they move with device-to-device transfers. -->
+    <!-- README §11.3. Photos and frames can exceed the 25 MB cloud backup quota, so only her settings go to the cloud:
+         the album rows stay home too, or a restore would bring back strips without their pictures (M9). -->
     <cloud-backup>
         <exclude domain="file" path="sessions/" />
+        <exclude domain="file" path="frames/" />
+        <exclude domain="database" path="." />
     </cloud-backup>
+    <!-- A new phone set up from this one gets everything: the album, her imported frames, the database and settings. -->
     <device-transfer>
         <include domain="file" path="sessions/" />
+        <include domain="file" path="frames/" />
         <include domain="database" path="." />
         <include domain="file" path="datastore/" />
     </device-transfer>

@@ -30,18 +30,28 @@ fun AddFrameRoute(
     val exit by rememberUpdatedState(onExit)
     val done by rememberUpdatedState(onDone)
     val haptics = rememberBoothHaptics()
+    // Saved across a process death: whether the picker was opened, and whether it already gave her picture.
+    var launched by rememberSaveable { mutableStateOf(false) }
+    var picked by rememberSaveable { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         when {
-            uri != null -> viewModel.open(uri)
+            uri != null -> {
+                picked = true
+                viewModel.open(uri)
+            }
             // Backed out of the picker before choosing anything: nothing to do here.
             viewModel.uiState.value.step == AddFrameStep.Picking -> exit()
         }
     }
     val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-    var launched by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!launched) {
             launched = true
+            picker.launch(request)
+        } else if (picked && viewModel.uiState.value.step == AddFrameStep.Picking) {
+            // Android closed the app in the background mid-flow (§13): the picture she chose went with it, and
+            // nothing was saved yet, so she chooses it again instead of facing an empty screen.
+            picked = false
             picker.launch(request)
         }
     }

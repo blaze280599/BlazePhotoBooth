@@ -50,6 +50,12 @@ class BoothApp : Application() {
             container.exportWorkDir.deleteRecursively()
         }
     }
+
+    /** Low memory (M9): caches that are quick to rebuild give memory back. Coil trims its own cache. */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (::container.isInitialized) container.trimMemory(level)
+    }
 }
 
 /**
@@ -63,9 +69,14 @@ class AppContainer(val appContext: Context) {
     /** Album count, newest strip and draft for Home (§4.1). */
     val homeSource: HomeSource by lazy { BoothHomeSource(draftStore, sessionRepository) }
 
+    private val frameRepositoryLazy = lazy { FrameRepository(appContext, customFrames, boothPreferences.hiddenBundledFrames) }
+
     /** Her frames (bundled and imported) and the built-in themes (§5.5.3). */
-    val frameRepository: FrameRepository by lazy {
-        FrameRepository(appContext, customFrames, boothPreferences.hiddenBundledFrames)
+    val frameRepository: FrameRepository by frameRepositoryLazy
+
+    /** `onTrimMemory`: only what already exists is trimmed (nothing is created just to be emptied). */
+    fun trimMemory(level: Int) {
+        if (frameRepositoryLazy.isInitialized()) frameRepository.trimMemory(level)
     }
 
     /** Frames imported on the phone: the `frames` table plus `files/frames/` (§4.9, §11.2). */

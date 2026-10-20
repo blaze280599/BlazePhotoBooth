@@ -1,5 +1,6 @@
 package com.blaze.photobooth.data.frames
 
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
@@ -125,18 +126,31 @@ class FrameRepository(
      * The artwork for [frame], at most [maxWidth] px wide (null = native size; the preview passes
      * [BitmapOps.PreviewMaxPx]).
      */
-    suspend fun artwork(frame: ImageFrame, maxWidth: Int? = null): Bitmap = load("${frame.id}", frame.artwork, maxWidth)
+    suspend fun artwork(frame: ImageFrame, maxWidth: Int? = null): Bitmap =
+        load("${frame.id}", frame.artwork, maxWidth, onScreen = maxWidth != null)
 
     /** The ~300 px carousel thumbnail. */
-    suspend fun thumbnail(frame: ImageFrame): Bitmap = load("${frame.id}#thumb", frame.thumb, null)
+    suspend fun thumbnail(frame: ImageFrame): Bitmap = load("${frame.id}#thumb", frame.thumb, null, onScreen = true)
 
-    private suspend fun load(name: String, location: ArtworkLocation, maxWidth: Int?): Bitmap {
+    /** [onScreen]: a preview or swatch, so its GPU upload starts at once ([BitmapOps.forScreen]); not for exports. */
+    private suspend fun load(name: String, location: ArtworkLocation, maxWidth: Int?, onScreen: Boolean): Bitmap {
         val key = "$name@${maxWidth ?: 0}"
         bitmaps.get(key)?.let { return it }
         return withContext(io) {
-            BitmapOps.decode(open = { open(location) }, maxWidth = maxWidth)
+            BitmapOps.decode(open = { open(location) }, maxWidth = maxWidth).also { if (onScreen) BitmapOps.forScreen(it) }
         }.also { bitmaps.put(key, it) }
     }
+
+    /**
+     * The system is short of memory (M9): with the app out of sight the cached artwork goes (it's quick to decode
+     * again); while it's on screen, half of it. Called from `BoothApp.onTrimMemory`.
+     */
+    fun trimMemory(level: Int) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) bitmaps.evictAll() else bitmaps.trimToSize(BitmapCacheKb / 2)
+    }
+
+    /** How much artwork is cached, in kilobytes (for tests). */
+    internal fun cachedKb(): Int = bitmaps.size()
 
     private fun open(location: ArtworkLocation): InputStream = when (location) {
         is ArtworkLocation.Asset -> context.assets.open(location.path)

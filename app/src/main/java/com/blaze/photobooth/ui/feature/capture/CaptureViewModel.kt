@@ -131,7 +131,7 @@ class CaptureViewModel(
     private fun shutter() {
         val s = state.value
         if (!s.loaded) return
-        if (!s.running && s.taken == 0 && s.lowStorage && !storageAcknowledged) {
+        if (asksAboutStorage(running = s.running, taken = s.taken, lowStorage = s.lowStorage, acknowledged = storageAcknowledged)) {
             state.update { it.copy(showStorageWarning = true) }
             return
         }
@@ -194,7 +194,7 @@ class CaptureViewModel(
                 mirror = config.mirror,
                 backFlash = config.backFlash,
                 tray = List(total) { i -> TrayShot(p.aspectFor(shotFor(i)), thumbs[i]) },
-                lowStorage = freeBytes() < LowStorageBytes,
+                lowStorage = isLowStorage(withContext(Dispatchers.IO) { freeBytes() }),
             )
         }
         val seq = CaptureSequencer(
@@ -257,7 +257,7 @@ class CaptureViewModel(
     private suspend fun loadThumbnail(index: Int) = withContext(Dispatchers.IO) {
         try {
             val file = draftStore.shotFile(index)
-            BitmapOps.decode(open = { file.inputStream() }, maxWidth = ShotProcessor.ThumbPx).asImageBitmap()
+            BitmapOps.forScreen(BitmapOps.decode(open = { file.inputStream() }, maxWidth = ShotProcessor.ThumbPx)).asImageBitmap()
         } catch (e: Exception) {
             Log.w(Tag, "No thumbnail for shot $index", e)
             null
@@ -298,6 +298,16 @@ class CaptureViewModel(
 
         /** Below this, warn before starting (§13). */
         const val LowStorageBytes = 50L * 1024 * 1024
+
+        /** §13: under 50 MB of room for new shots. */
+        fun isLowStorage(freeBytes: Long): Boolean = freeBytes < LowStorageBytes
+
+        /**
+         * §13: the shutter asks first ("Your phone is almost full…") only before the very first shot of a session,
+         * when space is low and she hasn't already said "Start anyway". Pure.
+         */
+        fun asksAboutStorage(running: Boolean, taken: Int, lowStorage: Boolean, acknowledged: Boolean): Boolean =
+            !running && taken == 0 && lowStorage && !acknowledged
 
         /** [retakeIndex]: shoot only that shot again (Pick's retake, §4.4); null = the whole session. */
         fun factory(retakeIndex: Int?): ViewModelProvider.Factory = viewModelFactory {

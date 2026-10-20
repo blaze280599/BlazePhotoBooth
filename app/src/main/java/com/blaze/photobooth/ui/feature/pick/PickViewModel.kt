@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.BreakIterator
 import java.time.LocalDate
 
 /**
@@ -83,7 +84,7 @@ class PickViewModel(
             is PickEvent.SelectFrame -> selectFrame(event.id)
             is PickEvent.SelectFilter -> changeConfig(config.copy(filter = event.filter))
             is PickEvent.SetCaption -> {
-                val caption = event.text.replace('\n', ' ').take(MaxCaption)
+                val caption = cleanCaption(event.text)
                 state.update { it.copy(caption = caption) }
                 persistPick()
                 rebuildPreview()
@@ -169,7 +170,7 @@ class PickViewModel(
             reuse.firstOrNull { it.index == shot.index && it.version == shot.version }?.let { return@mapNotNull it }
             try {
                 val file = source.shotFile(shot.index)
-                val bitmap = withContext(io) { decodePreview(file) }
+                val bitmap = withContext(io) { BitmapOps.forScreen(decodePreview(file)) }
                 PickShot(shot.index, bitmap, bitmap.asImageBitmap(), bonus = shot.index >= cuts, version = shot.version)
             } catch (e: Exception) {
                 Log.w(Tag, "Couldn't load shot ${shot.index}", e)
@@ -284,17 +285,25 @@ class PickViewModel(
         }
         .map { FrameCardState(it) }
 
+    /**
+     * The Frame tab's swatches, one after another and shown together (M9: five parallel decodes and five
+     * recompositions fought the first frames of Pick and Edit for the CPU). The tab opens on Cuts, so nobody waits.
+     */
     private fun loadFrameThumbnails() {
-        state.value.frames.map { it.option }.filterIsInstance<FrameOption.Artwork>().forEach { option ->
-            viewModelScope.launch {
-                val thumb = try {
-                    frameRepository.thumbnail(option.frame)
+        val artwork = state.value.frames.map { it.option }.filterIsInstance<FrameOption.Artwork>()
+        if (artwork.isEmpty()) return
+        viewModelScope.launch {
+            val thumbs = artwork.mapNotNull { option ->
+                try {
+                    option.id to frameRepository.thumbnail(option.frame)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.w(Tag, "No thumbnail for ${option.id}", e)
-                    return@launch
+                    null
                 }
-                state.update { s -> s.copy(frames = s.frames.map { if (it.option.id == option.id) it.copy(thumbnail = thumb) else it }) }
-            }
+            }.toMap()
+            state.update { s -> s.copy(frames = s.frames.map { card -> thumbs[card.option.id]?.let { card.copy(thumbnail = it) } ?: card }) }
         }
     }
 
@@ -304,7 +313,7 @@ class PickViewModel(
         peekJob?.cancel()
         peekJob = viewModelScope.launch {
             val big = try {
-                withContext(io) { BitmapOps.decode(open = { source.shotFile(index).inputStream() }, maxWidth = PeekMaxPx) }
+                withContext(io) { BitmapOps.forScreen(BitmapOps.decode(open = { source.shotFile(index).inputStream() }, maxWidth = PeekMaxPx)) }
             } catch (e: Exception) {
                 Log.w(Tag, "Couldn't open shot $index", e)
                 return@launch
@@ -341,6 +350,24 @@ class PickViewModel(
         private const val Tag = "PickViewModel"
         const val MaxCaption = 24
         private const val PeekMaxPx = 1600
+
+        /**
+         * §13: one line of at most [MaxCaption] characters (a pasted line break becomes a space). A longer one is cut
+         * between whole characters, so an emoji (two or more chars, e.g. 🫶 or 👩‍❤️‍👨) is never split into a broken box.
+         * Pure.
+         */
+        fun cleanCaption(text: String): String {
+            val line = text.replace('\n', ' ')
+            if (line.length <= MaxCaption) return line
+            val boundaries = BreakIterator.getCharacterInstance().apply { setText(line) }
+            var end = 0
+            var next = boundaries.first()
+            while (next != BreakIterator.DONE && next <= MaxCaption) {
+                end = next
+                next = boundaries.next()
+            }
+            return line.substring(0, end)
+        }
 
         /** Shots are drawn into the preview and the tray at ≤ 600 px (§10). */
         fun decodePreview(file: File): android.graphics.Bitmap {

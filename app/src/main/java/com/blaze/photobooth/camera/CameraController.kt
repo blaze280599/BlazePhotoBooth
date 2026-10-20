@@ -186,15 +186,8 @@ class CameraController(private val context: Context) {
 
     private fun watch(camera: Camera, owner: LifecycleOwner) {
         val observer = Observer<CameraState> { state ->
-            val error = state.error
-            statusFlow.value = when {
-                error != null && error.code in BusyErrors -> CameraStatus.Failed(CameraStatus.Reason.InUse)
-                error != null && error.code == CameraState.ERROR_CAMERA_DISABLED -> CameraStatus.Failed(CameraStatus.Reason.Disabled)
-                error != null && error.type == CameraState.ErrorType.CRITICAL -> CameraStatus.Failed(CameraStatus.Reason.Other)
-                state.type == CameraState.Type.OPEN -> CameraStatus.Ready
-                else -> statusFlow.value.takeIf { it is CameraStatus.Failed } ?: CameraStatus.Starting
-            }
-            if (error != null) Log.w(Tag, "Camera state ${state.type}, error ${error.code}")
+            statusFlow.value = statusFor(state, statusFlow.value)
+            state.error?.let { Log.w(Tag, "Camera state ${state.type}, error ${it.code}") }
         }
         stateObserver = observer
         camera.cameraInfo.cameraState.observe(owner, observer)
@@ -208,6 +201,22 @@ class CameraController(private val context: Context) {
         const val MaxPhotoPixels = 12_000_000L
 
         private val BusyErrors = setOf(CameraState.ERROR_CAMERA_IN_USE, CameraState.ERROR_MAX_CAMERAS_IN_USE)
+
+        /**
+         * §13: what Capture shows for the camera's [state]. Busy → "another app might be using it", disabled or any
+         * other critical error → the error card (both offer Retry); open → ready. A failure stays on screen while the
+         * camera closes after it ([previous]). Pure.
+         */
+        fun statusFor(state: CameraState, previous: CameraStatus): CameraStatus {
+            val error = state.error
+            return when {
+                error != null && error.code in BusyErrors -> CameraStatus.Failed(CameraStatus.Reason.InUse)
+                error != null && error.code == CameraState.ERROR_CAMERA_DISABLED -> CameraStatus.Failed(CameraStatus.Reason.Disabled)
+                error != null && error.type == CameraState.ErrorType.CRITICAL -> CameraStatus.Failed(CameraStatus.Reason.Other)
+                state.type == CameraState.Type.OPEN -> CameraStatus.Ready
+                else -> previous.takeIf { it is CameraStatus.Failed } ?: CameraStatus.Starting
+            }
+        }
 
         private val FourByThree = AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
 
