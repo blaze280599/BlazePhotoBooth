@@ -1,12 +1,18 @@
 package com.blaze.photobooth.ui.feature.setup
 
 import androidx.annotation.StringRes
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.blaze.photobooth.R
 import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.model.BoothLayout
+import com.blaze.photobooth.model.Crowd
 import com.blaze.photobooth.model.FrameTheme
 import com.blaze.photobooth.model.PhotoFilter
 
@@ -45,6 +51,22 @@ val PhotoFilter.nameRes: Int
         PhotoFilter.Peach -> R.string.filter_peach
         PhotoFilter.Cool -> R.string.filter_cool
         PhotoFilter.Film -> R.string.filter_film
+    }
+
+@get:StringRes
+val Crowd.nameRes: Int
+    get() = when (this) {
+        Crowd.Solo -> R.string.setup_crowd_solo
+        Crowd.Duo -> R.string.setup_crowd_duo
+        Crowd.Squad -> R.string.setup_crowd_squad
+    }
+
+/** The little 👤 / 👥 / group icon on "Let's go!" (§5.6.1), as Material Rounded symbols (§6.4). */
+val Crowd.icon: ImageVector
+    get() = when (this) {
+        Crowd.Solo -> Icons.Rounded.Person
+        Crowd.Duo -> Icons.Rounded.People
+        Crowd.Squad -> Icons.Rounded.Groups
     }
 
 /** Her frames carry their own names (from frames.json); themes are translated. */

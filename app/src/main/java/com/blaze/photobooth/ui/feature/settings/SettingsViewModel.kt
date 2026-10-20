@@ -36,6 +36,7 @@ sealed interface SettingsEvent {
     data class SetScreenFlash(val on: Boolean) : SettingsEvent
     data class SetSaveMirrored(val on: Boolean) : SettingsEvent
     data class SetAutoSave(val on: Boolean) : SettingsEvent
+    data class SetPoseIdeas(val on: Boolean) : SettingsEvent
 }
 
 /**
@@ -65,6 +66,7 @@ class SettingsViewModel(
                     is SettingsEvent.SetScreenFlash -> s.copy(screenFlash = event.on)
                     is SettingsEvent.SetSaveMirrored -> s.copy(saveMirrored = event.on)
                     is SettingsEvent.SetAutoSave -> s.copy(autoSaveStrip = event.on)
+                    is SettingsEvent.SetPoseIdeas -> s.copy(poseIdeas = event.on)
                 }
             }
         }

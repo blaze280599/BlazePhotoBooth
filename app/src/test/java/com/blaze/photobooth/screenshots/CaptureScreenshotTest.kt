@@ -42,6 +42,12 @@ internal object CaptureSamples {
 
     private val classic = CapturePlan(LayoutGeometry.cells(BoothLayout.Classic), bonusShots = 2)
 
+    /** A Just-me pose plan for the classic strip (§5.6): cute, silly, cool, love (the 4th cut), then two bonus shots. */
+    val classicPoses = listOf("cheek-heart", "laugh", "hand-glasses", "finger-heart", "flower-cup", "tongue")
+
+    /** Two of us on her Lilac Pals (3 windows + 2 bonus): the third window is the heart. */
+    val lilacDuoPoses = listOf("point-each", "cheek-pinch", "shared-heart", "mirror", "flower-cup")
+
     /** Strawberry Milk classic strip, 6 shots, front camera, [taken] already in the tray. */
     fun theme(phase: SequencePhase, taken: Int = 0, flashCount: Int = 0): CaptureUiState {
         val thumbs = List(taken) { TestArt.photo(it + 1, 320, 224).asImageBitmap() }
@@ -57,6 +63,7 @@ internal object CaptureSamples {
             camera = CameraStatus.Ready,
             tray = List(classic.totalShots) { i -> TrayShot(classic.aspectFor(i), thumbs.getOrNull(i)) },
             flashCount = flashCount,
+            posePlan = classicPoses,
         )
     }
 
@@ -71,6 +78,7 @@ internal object CaptureSamples {
             aspect = plan.aspectFor(taken),
             frameColor = 0xFFC9B6EE.toInt(),
             tray = List(plan.totalShots) { i -> TrayShot(plan.aspectFor(i), thumbs.getOrNull(i)) },
+            posePlan = lilacDuoPoses,
         )
     }
 

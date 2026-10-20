@@ -94,6 +94,7 @@ class SetupViewModel(
             is SetupEvent.SetLens -> current.copy(lens = event.lens)
             is SetupEvent.SetMirror -> current.copy(mirror = event.mirror)
             is SetupEvent.SetBackFlash -> current.copy(backFlash = event.flash)
+            is SetupEvent.SetCrowd -> current.copy(crowd = event.crowd)
             SetupEvent.AddFrame, SetupEvent.Start, SetupEvent.Back -> return
         }
         if (next == current) return

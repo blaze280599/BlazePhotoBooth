@@ -7,6 +7,8 @@ import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.Lens
 import com.blaze.photobooth.model.PhotoFilter
+import com.blaze.photobooth.model.Pose
+import com.blaze.photobooth.model.Poses
 
 /**
  * Everything Capture shows (README §4.3). [tray] has one entry per planned shot; [aspect] is the
@@ -40,6 +42,10 @@ data class CaptureUiState(
     val showStorageWarning: Boolean = false,
     /** Bumped by Retry so the camera binds again. */
     val bindAttempt: Int = 0,
+    /** The session's pose plan (§5.6): one pose id per shot, from the draft. */
+    val posePlan: List<String> = emptyList(),
+    /** Settings → Pose ideas (§5.6.1): off means no pose card. */
+    val poseIdeas: Boolean = true,
 ) {
     val taken: Int get() = sequence.taken
     val total: Int get() = sequence.total
@@ -60,8 +66,32 @@ data class CaptureUiState(
 
     val cameraFailed: Boolean get() = camera is CameraStatus.Failed
 
-    /** Which cheerful prompt goes with this shot (§4.3). */
-    val promptIndex: Int get() = taken
+    /**
+     * The shot whose pose the card shows (§5.6.1): the next one to take (during the beat that's already the next
+     * shot, for *"Next: …"*), or the retaken shot. Null once there's nothing left to take.
+     */
+    val poseIndex: Int?
+        get() = when {
+            !loaded || phase == SequencePhase.Done -> null
+            retakeIndex != null -> retakeIndex.takeIf { taken == 0 }
+            else -> taken.takeIf { it < total }
+        }
+
+    /** The pose the card shows, or null for no card (Pose ideas off, or no shot left). */
+    val shownPose: Pose? get() = if (poseIdeas) poseIndex?.let { Poses.find(posePlan.getOrNull(it)) } else null
+
+    /** Which card (§5.6.1): big before a countdown, smaller during it, *"Next: …"* during the beat. */
+    val poseCardKind: PoseCardKind?
+        get() = when (phase) {
+            SequencePhase.Idle -> if (taken == 0 && retakeIndex == null) PoseCardKind.FirstUp else PoseCardKind.UpNext
+            SequencePhase.Paused -> PoseCardKind.UpNext
+            is SequencePhase.Countdown, SequencePhase.Capturing -> PoseCardKind.Now
+            SequencePhase.Beat -> PoseCardKind.Next
+            SequencePhase.Done -> null
+        }
+
+    /** Tap-to-swap works on any card except while the photo is being taken. */
+    val canSwapPose: Boolean get() = shownPose != null && phase != SequencePhase.Capturing
 
     companion object {
         const val DefaultFrameColor = 0xFFFFD6E3.toInt()
@@ -83,6 +113,9 @@ sealed interface CaptureEvent {
 
     /** The top bar's back-flash toggle: Off ↔ Auto (§13). */
     data object ToggleBackFlash : CaptureEvent
+
+    /** Tap on the pose card (§5.6.1): another unused pose for the shot it shows. */
+    data object SwapPose : CaptureEvent
     data object RetryCamera : CaptureEvent
     data object StartAnyway : CaptureEvent
     data object DismissStorageWarning : CaptureEvent

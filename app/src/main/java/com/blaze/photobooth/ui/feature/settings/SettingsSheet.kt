@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Collections
+import androidx.compose.material.icons.rounded.EmojiPeople
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Flip
 import androidx.compose.material.icons.rounded.Info
@@ -112,6 +113,9 @@ fun SettingsSheetContent(
         ToggleRow(Icons.Rounded.Vibration, R.string.settings_haptics, null, s.haptics) { onEvent(SettingsEvent.SetHaptics(it)) }
         ToggleRow(Icons.Rounded.FlashOn, R.string.settings_screen_flash, null, s.screenFlash) {
             onEvent(SettingsEvent.SetScreenFlash(it))
+        }
+        ToggleRow(Icons.Rounded.EmojiPeople, R.string.settings_pose_ideas, R.string.settings_pose_ideas_summary, s.poseIdeas) {
+            onEvent(SettingsEvent.SetPoseIdeas(it))
         }
         ToggleRow(Icons.Rounded.Flip, R.string.settings_save_mirrored, R.string.settings_save_mirrored_summary, s.saveMirrored) {
             onEvent(SettingsEvent.SetSaveMirrored(it))

@@ -6,6 +6,7 @@ import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
+import com.blaze.photobooth.model.Crowd
 import com.blaze.photobooth.model.FrameId
 import com.blaze.photobooth.model.Lens
 import com.blaze.photobooth.model.PhotoFilter
@@ -52,6 +53,7 @@ sealed interface SetupEvent {
     data class SetLens(val lens: Lens) : SetupEvent
     data class SetMirror(val mirror: Boolean) : SetupEvent
     data class SetBackFlash(val flash: BackFlash) : SetupEvent
+    data class SetCrowd(val crowd: Crowd) : SetupEvent
     data object AddFrame : SetupEvent
     data object Start : SetupEvent
     data object Back : SetupEvent

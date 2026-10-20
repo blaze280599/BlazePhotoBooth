@@ -2,9 +2,11 @@ package com.blaze.photobooth.ui.feature.capture
 
 import android.graphics.RenderEffect
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
@@ -78,7 +80,6 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -96,11 +97,14 @@ import com.blaze.photobooth.R
 import com.blaze.photobooth.camera.CameraStatus
 import com.blaze.photobooth.core.Calm
 import com.blaze.photobooth.core.LocalReduceMotion
+import com.blaze.photobooth.core.rememberBoothHaptics
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.PhotoFilter
 import com.blaze.photobooth.render.Filters
 import com.blaze.photobooth.ui.components.Arc
 import com.blaze.photobooth.ui.components.CountdownRing
+import com.blaze.photobooth.ui.components.FitText
+import com.blaze.photobooth.ui.components.isLargeFont
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.navigation.SharedKeys
 import com.blaze.photobooth.ui.navigation.sharedContainer
@@ -170,6 +174,7 @@ fun CaptureScreen(
                     state.camera is CameraStatus.Failed -> CameraErrorCard(state.camera.reason, onEvent)
                     else -> ViewfinderCard(
                         state = state,
+                        onSwapPose = { onEvent(CaptureEvent.SwapPose) },
                         modifier = Modifier.onGloballyPositioned { viewfinderBounds = it.boundsInRoot() },
                         viewfinder = viewfinder,
                     )
@@ -288,7 +293,7 @@ private fun CaptureTopBar(state: CaptureUiState, onEvent: (CaptureEvent) -> Unit
  * corners, with the filter applied on the GPU (§9.3) and the countdown on top. The last second wiggles.
  */
 @Composable
-private fun ViewfinderCard(state: CaptureUiState, modifier: Modifier, viewfinder: @Composable (Modifier) -> Unit) {
+private fun ViewfinderCard(state: CaptureUiState, onSwapPose: () -> Unit, modifier: Modifier, viewfinder: @Composable (Modifier) -> Unit) {
     val reduceMotion = LocalReduceMotion.current
     val aspect by animateFloatAsState(state.aspect, Calm.spec(reduceMotion, BoothMotion.gentle()), label = "aspect")
     val wiggle = remember { Animatable(0f) }
@@ -332,42 +337,86 @@ private fun ViewfinderCard(state: CaptureUiState, modifier: Modifier, viewfinder
         ) {
             viewfinder(Modifier.fillMaxSize())
         }
-        ViewfinderOverlay(state)
+        ViewfinderOverlay(state, onSwapPose)
+    }
+}
+
+/**
+ * What sits on the viewfinder: the pose card at the top (§5.6.1, unless Settings turned pose ideas off), and under it
+ * the countdown ring, the "Nice!" beat or the hint pill.
+ */
+@Composable
+private fun ViewfinderOverlay(state: CaptureUiState, onSwapPose: () -> Unit) {
+    val haptics = rememberBoothHaptics()
+    val reduceMotion = LocalReduceMotion.current
+    Column(Modifier.fillMaxSize()) {
+        val pose = state.shownPose
+        val kind = state.poseCardKind
+        // Pops in on Bouncy the first time it shows (a plain fade with reduce motion); changes cross-fade inside it.
+        val visible = remember { MutableTransitionState(false) }.apply { targetState = pose != null && kind != null }
+        AnimatedVisibility(
+            visibleState = visible,
+            enter = if (reduceMotion) fadeIn() else scaleIn(BoothMotion.bouncy(), initialScale = 0.6f) + fadeIn(),
+            exit = fadeOut(),
+        ) {
+            // The last pose stays in place while the card fades out.
+            var shown by remember { mutableStateOf(pose to kind) }
+            if (pose != null && kind != null) shown = pose to kind
+            val (p, k) = shown
+            if (p != null && k != null) {
+                PoseCard(
+                    kind = k,
+                    pose = p,
+                    onSwap = if (state.canSwapPose) {
+                        {
+                            haptics.segmentTick()
+                            onSwapPose()
+                        }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 10.dp, end = 10.dp, top = 10.dp),
+                )
+            }
+        }
+        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            ViewfinderPhase(state, hasPoseCard = pose != null)
+        }
     }
 }
 
 @Composable
-private fun BoxScope.ViewfinderOverlay(state: CaptureUiState) {
-    val prompts = stringArrayResource(R.array.capture_prompts)
+private fun BoxScope.ViewfinderPhase(state: CaptureUiState, hasPoseCard: Boolean) {
     when (val phase = state.phase) {
-        is SequencePhase.Countdown -> {
-            Pill(
-                text = prompts[state.promptIndex % prompts.size],
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 14.dp),
-            )
-            CountdownRing(
-                secondsLeft = phase.secondsLeft,
-                totalSeconds = state.timerSec,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 48.dp, bottom = 8.dp),
-            )
-        }
+        is SequencePhase.Countdown -> CountdownRing(
+            secondsLeft = phase.secondsLeft,
+            totalSeconds = state.timerSec,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = if (hasPoseCard) 4.dp else 14.dp, bottom = 8.dp),
+        )
         SequencePhase.Beat -> BigWord(R.string.capture_nice)
         SequencePhase.Done -> BigWord(R.string.capture_done)
         SequencePhase.Idle -> Pill(
-            text = stringResource(if (state.camera == CameraStatus.Ready) R.string.capture_hint_ready else R.string.capture_hint_starting),
+            text = stringResource(
+                when {
+                    state.camera != CameraStatus.Ready -> R.string.capture_hint_starting
+                    // Big fonts under the pose card: the short hint, so it isn't cut off.
+                    hasPoseCard && isLargeFont() -> R.string.capture_hint_ready_short
+                    else -> R.string.capture_hint_ready
+                },
+            ),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp),
+                .padding(if (hasPoseCard) 12.dp else 16.dp),
         )
         SequencePhase.Paused -> Pill(
-            text = stringResource(R.string.capture_hint_paused),
+            text = stringResource(if (hasPoseCard && isLargeFont()) R.string.capture_hint_paused_short else R.string.capture_hint_paused),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp),
+                .padding(if (hasPoseCard) 12.dp else 16.dp),
         )
         SequencePhase.Capturing -> Unit
     }
@@ -381,10 +430,11 @@ private fun Pill(text: String, modifier: Modifier = Modifier) {
         color = Color.Black.copy(alpha = 0.45f),
         contentColor = Color.White,
     ) {
-        Text(
+        // Under the pose card (§5.6.1) the room is short: with big fonts the hint shrinks back to fit, never below 100%.
+        FitText(
             text = text,
             style = MaterialTheme.typography.titleLarge.handwritten(),
-            textAlign = TextAlign.Center,
+            maxLines = 2,
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
         )
     }

@@ -102,6 +102,7 @@ import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.BoothConfig
 import com.blaze.photobooth.model.BoothLayout
+import com.blaze.photobooth.model.Crowd
 import com.blaze.photobooth.model.FrameSource
 import com.blaze.photobooth.model.FrameTheme
 import com.blaze.photobooth.model.Lens
@@ -192,10 +193,14 @@ fun SetupScreen(
                         .heightIn(min = 60.dp),
                     contentPadding = PaddingValues(horizontal = 24.dp),
                 ) {
+                    // Who's in the booth (§5.6.1), at a glance; the Options row says it in words.
+                    Icon(state.config.crowd.icon, contentDescription = null, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(10.dp))
                     Text(
                         pluralStringResource(R.plurals.setup_cta, state.totalShots, state.totalShots),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
             }
@@ -680,6 +685,20 @@ private fun OptionsPage(config: BoothConfig, onEvent: (SetupEvent) -> Unit) {
             .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        // §5.6.1: three choices need the full width, so this row always puts its control under the words.
+        Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column {
+                Text(stringResource(R.string.setup_crowd), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.setup_crowd_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Segmented(
+                values = Crowd.entries,
+                selected = config.crowd,
+                label = { stringResource(it.nameRes) },
+                onSelect = { onEvent(SetupEvent.SetCrowd(it)) },
+                fullWidth = true,
+            )
+        }
         OptionRow(stringResource(R.string.setup_timer)) {
             Segmented(
                 values = BoothConfig.TimerChoices,
@@ -759,8 +778,9 @@ private fun <T> Segmented(
     label: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     description: (@Composable (T) -> String)? = null,
+    fullWidth: Boolean = false,
 ) {
-    SingleChoiceSegmentedButtonRow(if (isLargeFont()) Modifier.fillMaxWidth() else Modifier.width(196.dp)) {
+    SingleChoiceSegmentedButtonRow(if (fullWidth || isLargeFont()) Modifier.fillMaxWidth() else Modifier.width(196.dp)) {
         values.forEachIndexed { index, value ->
             // "5 seconds" reads better than "5 s" (§6.7).
             val spoken = description?.invoke(value)
@@ -776,7 +796,14 @@ private fun <T> Segmented(
                     inactiveBorderColor = MaterialTheme.colorScheme.outline,
                 ),
                 icon = {},
-                label = { if (isLargeFont()) Text(label(value), maxLines = 1) else FitText(label(value)) },
+                // Long labels ("Squad (3+)") shrink back to fit with big fonts rather than being cut off.
+                label = {
+                    when {
+                        fullWidth -> FitText(label(value), maxLines = 2)
+                        isLargeFont() -> Text(label(value), maxLines = 1)
+                        else -> FitText(label(value))
+                    }
+                },
             )
         }
     }

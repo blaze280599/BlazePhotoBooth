@@ -77,6 +77,7 @@ class CaptureViewModel(
     init {
         viewModelScope.launch { camera.status.collect { s -> state.update { it.copy(camera = s) } } }
         viewModelScope.launch { load() }
+        viewModelScope.launch { settings.collect { s -> state.update { it.copy(poseIdeas = s.poseIdeas) } } }
         viewModelScope.launch {
             val lenses = camera.availableLenses()
             state.update { it.copy(lenses = lenses) }
@@ -94,6 +95,7 @@ class CaptureViewModel(
             CaptureEvent.DismissStorageWarning -> state.update { it.copy(showStorageWarning = false) }
             CaptureEvent.Flip -> flip()
             CaptureEvent.ToggleBackFlash -> toggleBackFlash()
+            CaptureEvent.SwapPose -> swapPose()
             CaptureEvent.RetryCamera -> state.update { it.copy(bindAttempt = it.bindAttempt + 1) }
             CaptureEvent.Close, CaptureEvent.RequestPermission, CaptureEvent.OpenSettings -> Unit // the route's
         }
@@ -162,6 +164,17 @@ class CaptureViewModel(
         }
     }
 
+    /** §5.6.1: swaps the pose on the card, saved in the draft at once (so a retake or a restart shows it). */
+    private fun swapPose() {
+        val s = state.value
+        val index = s.poseIndex ?: return
+        if (!s.canSwapPose) return
+        viewModelScope.launch {
+            val draft = draftStore.swapPose(index) ?: return@launch
+            state.update { it.copy(posePlan = draft.posePlan) }
+        }
+    }
+
     private suspend fun load() {
         val retake = retakeIndex
         val existing = draftStore.current()
@@ -195,6 +208,7 @@ class CaptureViewModel(
                 backFlash = config.backFlash,
                 tray = List(total) { i -> TrayShot(p.aspectFor(shotFor(i)), thumbs[i]) },
                 lowStorage = isLowStorage(withContext(Dispatchers.IO) { freeBytes() }),
+                posePlan = draft.posePlan,
             )
         }
         val seq = CaptureSequencer(
