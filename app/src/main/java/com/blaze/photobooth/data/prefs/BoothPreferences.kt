@@ -20,8 +20,19 @@ import kotlinx.coroutines.flow.map
 private val Context.boothDataStore: DataStore<Preferences> by preferencesDataStore(name = "booth")
 
 /**
- * The last Setup choices (README §4.2, §11.6), saved the moment they change.
- * Settings toggles (sound, haptics, …) join this store in M8.
+ * The Settings-sheet switches that M3 already obeys (README §4.8, §6.5, §9.5). Nothing writes them
+ * yet: until M8 wires the sheet to [BoothPreferences.saveSettings], every switch reads its default.
+ */
+data class BoothSettings(
+    val sounds: Boolean = true,
+    val haptics: Boolean = true,
+    /** Front-camera screen flash (§9.5). On by default until M8 adds the switch (and maybe "auto"). */
+    val screenFlash: Boolean = true,
+)
+
+/**
+ * The last Setup choices (README §4.2, §11.6), saved the moment they change, plus the Settings
+ * switches ([BoothSettings]).
  */
 class BoothPreferences(private val store: DataStore<Preferences>) {
 
@@ -34,6 +45,13 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
         store.edit { writeConfig(it, config) }
     }
 
+    /** Sound, haptics and screen flash. Defaults until M8's Settings sheet writes them. */
+    val settings: Flow<BoothSettings> = store.data.map(::readSettings)
+
+    suspend fun saveSettings(settings: BoothSettings) {
+        store.edit { writeSettings(it, settings) }
+    }
+
     companion object {
         private val Layout = stringPreferencesKey("setup.layout")
         private val Frame = stringPreferencesKey("setup.frame")
@@ -42,6 +60,24 @@ class BoothPreferences(private val store: DataStore<Preferences>) {
         private val Bonus = intPreferencesKey("setup.bonus_shots")
         private val LensKey = stringPreferencesKey("setup.lens")
         private val Mirror = booleanPreferencesKey("setup.mirror")
+        private val Sounds = booleanPreferencesKey("settings.sounds")
+        private val HapticsKey = booleanPreferencesKey("settings.haptics")
+        private val ScreenFlash = booleanPreferencesKey("settings.screen_flash")
+
+        fun readSettings(prefs: Preferences): BoothSettings {
+            val d = BoothSettings()
+            return BoothSettings(
+                sounds = prefs[Sounds] ?: d.sounds,
+                haptics = prefs[HapticsKey] ?: d.haptics,
+                screenFlash = prefs[ScreenFlash] ?: d.screenFlash,
+            )
+        }
+
+        fun writeSettings(prefs: MutablePreferences, settings: BoothSettings) {
+            prefs[Sounds] = settings.sounds
+            prefs[HapticsKey] = settings.haptics
+            prefs[ScreenFlash] = settings.screenFlash
+        }
 
         /**
          * Pure mapping, unit-tested. Unknown or out-of-range values (say, from an older version)

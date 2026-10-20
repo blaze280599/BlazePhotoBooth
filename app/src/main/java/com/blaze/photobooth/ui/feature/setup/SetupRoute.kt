@@ -19,7 +19,7 @@ fun SetupRoute(
         onEvent = { event ->
             when (event) {
                 SetupEvent.Back -> onBack()
-                SetupEvent.Start -> onStart()
+                SetupEvent.Start -> viewModel.startSession(onStart)
                 SetupEvent.AddFrame -> onAddFrame()
                 else -> viewModel.onEvent(event)
             }

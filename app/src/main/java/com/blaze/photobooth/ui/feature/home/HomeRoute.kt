@@ -15,7 +15,7 @@ fun HomeRoute(
     onStart: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenStrip: (sessionId: String) -> Unit,
-    onContinueDraft: () -> Unit,
+    onContinueDraft: (complete: Boolean) -> Unit,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -29,7 +29,7 @@ fun HomeRoute(
                 HomeEvent.OpenAlbum -> onOpenAlbum()
                 HomeEvent.OpenSettings -> showSettings = true
                 is HomeEvent.OpenStrip -> onOpenStrip(event.sessionId)
-                HomeEvent.ContinueDraft -> onContinueDraft()
+                HomeEvent.ContinueDraft -> onContinueDraft(state.draft?.complete == true)
                 HomeEvent.DiscardDraft -> viewModel.discardDraft()
             }
         },

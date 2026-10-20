@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.blaze.photobooth.BoothApp
+import com.blaze.photobooth.data.files.BoothDraftStore
 import com.blaze.photobooth.data.frames.FrameOption
 import com.blaze.photobooth.data.frames.FrameRepository
 import com.blaze.photobooth.data.prefs.BoothPreferences
@@ -40,6 +41,7 @@ import java.time.LocalDate
 class SetupViewModel(
     private val frameRepository: FrameRepository,
     private val preferences: BoothPreferences,
+    private val draftStore: BoothDraftStore,
     private val today: () -> LocalDate = LocalDate::now,
     private val compute: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
@@ -90,6 +92,23 @@ class SetupViewModel(
         viewModelScope.launch { preferences.save(next) }
     }
 
+    private var starting = false
+
+    /** "Let's go!": start a fresh draft (§11.4) with these choices, then go to Capture. */
+    fun startSession(onReady: () -> Unit) {
+        val s = state.value
+        if (!s.ready || starting) return
+        starting = true
+        viewModelScope.launch {
+            try {
+                draftStore.begin(s.config, s.totalShots)
+                onReady()
+            } finally {
+                starting = false
+            }
+        }
+    }
+
     private fun resolve(saved: BoothConfig?, options: List<FrameOption>): BoothConfig {
         val first = options.firstOrNull()?.id ?: BoothConfig().frameId
         val base = saved ?: BoothConfig(frameId = first)
@@ -131,7 +150,7 @@ class SetupViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) as BoothApp
-                SetupViewModel(app.container.frameRepository, app.container.boothPreferences)
+                SetupViewModel(app.container.frameRepository, app.container.boothPreferences, app.container.draftStore)
             }
         }
     }

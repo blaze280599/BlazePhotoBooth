@@ -22,7 +22,9 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import com.blaze.photobooth.R
+import com.blaze.photobooth.ui.feature.capture.CaptureRoute
 import com.blaze.photobooth.ui.feature.home.HomeRoute
+import com.blaze.photobooth.ui.feature.pick.PickPlaceholderRoute
 import com.blaze.photobooth.ui.feature.placeholder.PlaceholderAction
 import com.blaze.photobooth.ui.feature.placeholder.PlaceholderScreen
 import com.blaze.photobooth.ui.feature.setup.SetupRoute
@@ -40,7 +42,8 @@ val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?
  * [SharedTransitionLayout]. Each entry gets its own saveable state and ViewModel store. Forward and back
  * use the §7 A1 slide-and-fade; predictive back scrubs the same pop animation.
  *
- * Until their milestones land, every screen except Home and Setup is a [PlaceholderScreen] that walks the real flow.
+ * Until their milestones land, every screen except Home, Setup and Capture is a [PlaceholderScreen] that walks
+ * the real flow. Pick shows the draft's shots in a grid until M4 builds it.
  */
 @Composable
 fun BoothNavHost(modifier: Modifier = Modifier) {
@@ -65,7 +68,7 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                             onStart = { backStack.go(Setup) },
                             onOpenAlbum = { backStack.go(Album) },
                             onOpenStrip = { backStack.go(Detail(it)) },
-                            onContinueDraft = { backStack.go(Capture) },
+                            onContinueDraft = { complete -> backStack.go(if (complete) Pick() else Capture) },
                         )
                     }
                     entry<Setup> {
@@ -82,25 +85,25 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                         )
                     }
                     entry<Capture> {
-                        Placeholder(
-                            emoji = "📸", title = R.string.placeholder_capture_title, body = R.string.placeholder_capture_body,
-                            milestone = "M3", backStack = backStack,
-                            PlaceholderAction(R.string.placeholder_capture_next) { backStack.go(Pick()) },
+                        CaptureRoute(
+                            onLeave = { backStack.removeLastOrNull() },
+                            // Capture is done with once every shot is taken: back from Pick doesn't re-enter it.
+                            onFinished = {
+                                backStack.removeAll { it is Capture }
+                                backStack.go(Pick())
+                            },
                         )
                     }
                     entry<Pick> { key ->
-                        val editing = key.editSessionId != null
-                        Placeholder(
-                            emoji = "✂️",
-                            title = R.string.placeholder_pick_title,
-                            body = if (editing) R.string.placeholder_pick_edit_body else R.string.placeholder_pick_body,
-                            milestone = "M4", backStack = backStack,
-                            if (editing) {
-                                PlaceholderAction(R.string.placeholder_pick_edit_next) { backStack.removeLastOrNull() }
-                            } else {
-                                PlaceholderAction(R.string.placeholder_pick_next) { backStack.print(SampleSessionId) }
-                            },
-                        )
+                        if (key.editSessionId == null) {
+                            PickPlaceholderRoute(onBack = { backStack.removeLastOrNull() }, onPrint = { backStack.print(SampleSessionId) })
+                        } else {
+                            Placeholder(
+                                emoji = "✂️", title = R.string.placeholder_pick_title, body = R.string.placeholder_pick_edit_body,
+                                milestone = "M4", backStack = backStack,
+                                PlaceholderAction(R.string.placeholder_pick_edit_next) { backStack.removeLastOrNull() },
+                            )
+                        }
                     }
                     entry<Result> {
                         Placeholder(

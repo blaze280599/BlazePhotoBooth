@@ -97,6 +97,60 @@
     <string name="filter_cool">Soda</string>
     <string name="filter_film">Film</string>
 
+    <!-- Capture (§4.3, §12, §13) -->
+    <string name="capture_counter">%1$d / %2$d</string>
+    <string name="capture_counter_bonus">%1$d / %2$d ✦ bonus</string>
+    <string name="cd_capture_counter">Shot %1$d of %2$d</string>
+    <string name="cd_close_booth">Leave the booth</string>
+    <string name="cd_flip_camera">Switch camera</string>
+    <string name="cd_shutter_start">Start taking photos</string>
+    <string name="cd_shutter_pause">Pause</string>
+    <string name="cd_shutter_resume">Keep going</string>
+    <string name="cd_shot_tray">Shot tray: %1$d of %2$d</string>
+    <string name="cd_viewfinder">Camera viewfinder</string>
+    <string name="capture_hint_ready">Tap the big button when you\'re ready ✿</string>
+    <string name="capture_hint_paused">Paused · tap ▶ to keep going</string>
+    <string name="capture_hint_starting">Waking up the camera…</string>
+    <string name="capture_nice">Nice! ✿</string>
+    <string name="capture_done">All done! ♡</string>
+    <string-array name="capture_prompts">
+        <item>Say kimchi!</item>
+        <item>Heart hands! 🫶</item>
+        <item>Look surprised!</item>
+        <item>Peace ✌️</item>
+        <item>Cheek poke!</item>
+    </string-array>
+    <string name="capture_save_failed">Couldn\'t save that shot. Tap ▶ to try again.</string>
+    <string name="capture_leave_title">Leave the booth?</string>
+    <plurals name="capture_leave_body">
+        <item quantity="one">Your %d shot will be lost.</item>
+        <item quantity="other">Your %d shots will be lost.</item>
+    </plurals>
+    <string name="capture_leave_stay">Stay</string>
+    <string name="capture_leave_go">Leave</string>
+    <string name="capture_storage_title">Your phone is nearly full</string>
+    <string name="capture_storage_body">There\'s less than 50 MB free, so some photos might not save.</string>
+    <string name="capture_storage_go">Take photos anyway</string>
+    <string name="capture_storage_cancel">Not now</string>
+    <string name="capture_permission_title">Camera time!</string>
+    <string name="capture_permission_body">We need your camera to take cute photos 📸</string>
+    <string name="capture_permission_allow">Allow camera</string>
+    <string name="capture_permission_denied_body">The booth can\'t see you without the camera. Want to try again?</string>
+    <string name="capture_permission_retry">Try again</string>
+    <string name="capture_permission_blocked_body">Camera access is turned off. You can switch it on in Settings → Permissions → Camera.</string>
+    <string name="capture_permission_settings">Open settings</string>
+    <string name="capture_error_title">The camera is napping</string>
+    <string name="capture_error_in_use">Another app might be using it. Close that app, then try again.</string>
+    <string name="capture_error_other">It didn\'t start this time. Let\'s give it another go.</string>
+    <string name="capture_error_retry">Retry</string>
+
+    <!-- Pick placeholder (M3 shows the shots; M4 builds Pick) -->
+    <plurals name="pick_placeholder_shots">
+        <item quantity="one">%d shot in the draft</item>
+        <item quantity="other">%d shots in the draft</item>
+    </plurals>
+    <string name="cd_shot">Shot %d</string>
+
     <!-- Placeholder screens (M1 shell). Each is replaced by its real screen in a later milestone. -->
     <string name="cd_back">Back</string>
     <string name="placeholder_coming">Coming in %1$s ✿</string>
@@ -106,7 +160,6 @@
     <string name="placeholder_capture_body">The countdown, flash and cheesy poses happen here. Say kimchi!</string>
     <string name="placeholder_capture_next">Pick cuts</string>
     <string name="placeholder_pick_title">Pick</string>
-    <string name="placeholder_pick_body">Choose your favourite cuts and add a caption.</string>
     <string name="placeholder_pick_edit_body">Re-pick cuts or change the frame of a saved strip.</string>
     <string name="placeholder_pick_next">Print ✿</string>
     <string name="placeholder_pick_edit_next">Save changes</string>

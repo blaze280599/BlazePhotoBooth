@@ -18,9 +18,9 @@ data class HomeUiState(
 @Immutable
 data class RecentStrip(val sessionId: String, val thumbnail: File?)
 
-/** An unfinished booth session that can be continued (§11.4). */
+/** An unfinished booth session that can be continued (§11.4). [complete]: every shot is taken, so Continue goes to Pick. */
 @Immutable
-data class DraftSummary(val shotCount: Int)
+data class DraftSummary(val shotCount: Int, val complete: Boolean = false)
 
 sealed interface HomeEvent {
     data object Start : HomeEvent
