@@ -40,6 +40,12 @@ object BoothMotion {
     fun <T> floatSpin(durationMillis: Int = SpinMillis): InfiniteRepeatableSpec<T> =
         infiniteRepeatable(tween(durationMillis, easing = LinearEasing), RepeatMode.Restart)
 
+    /** The selected-card ✓ sticker's endless little wobble (§7 A4): a quick ease-in-out rock. */
+    fun <T> wobble(): InfiniteRepeatableSpec<T> =
+        infiniteRepeatable(tween(WobbleMillis, easing = EaseInOutSine), RepeatMode.Reverse)
+
+    const val WobbleMillis = 900
+
     const val FloatMinMillis = 6_000
     const val FloatMaxMillis = 12_000
     const val FloatMillis = 8_000

@@ -45,6 +45,8 @@ android {
         unitTests.all {
             // Robolectric reaches into FileDescriptor internals for API 36+ framework code; JDK 21 hides them by default.
             it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+            // A fresh JVM per test class: Robolectric draws graphicsLayer content blank after other Compose tests in the same JVM.
+            it.forkEvery = 1
         }
     }
 }

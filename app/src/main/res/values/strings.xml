@@ -37,12 +37,71 @@
     <string name="settings_about">About &amp; licenses</string>
     <string name="settings_about_summary">Fonts: Fredoka and Gaegu (SIL OFL 1.1)</string>
 
+    <!-- Setup (§4.2) -->
+    <string name="setup_title">Make your strip</string>
+    <string name="setup_tab_layout">Layout</string>
+    <string name="setup_tab_frame">Frame</string>
+    <string name="setup_tab_filter">Filter</string>
+    <string name="setup_tab_options">Options</string>
+    <plurals name="setup_cta">
+        <item quantity="one">Let\'s go! · %d shot</item>
+        <item quantity="other">Let\'s go! · %d shots</item>
+    </plurals>
+    <plurals name="setup_cuts">
+        <item quantity="one">%d cut</item>
+        <item quantity="other">%d cuts</item>
+    </plurals>
+    <string name="setup_set_by_frame">Set by frame ♡</string>
+    <plurals name="setup_set_by_frame_body">
+        <item quantity="one">%1$s has %2$d photo window, so it picks the layout.</item>
+        <item quantity="other">%1$s has %2$d photo windows, so it picks the layout.</item>
+    </plurals>
+    <string name="setup_her_frames">Her frames ♡</string>
+    <string name="setup_themes">Themes</string>
+    <string name="setup_add_frame">Add frame</string>
+    <string name="setup_timer">Timer</string>
+    <string name="setup_timer_value">%d s</string>
+    <string name="setup_bonus">Bonus shots</string>
+    <string name="setup_bonus_hint">Extra takes to choose from</string>
+    <string name="setup_bonus_value">+%d</string>
+    <string name="setup_camera">Camera</string>
+    <string name="setup_camera_front">Front</string>
+    <string name="setup_camera_back">Back</string>
+    <string name="setup_mirror">Mirror selfies</string>
+    <string name="setup_mirror_hint">Saved just like you see it</string>
+    <string name="setup_mirror_back_hint">Only for the front camera</string>
+    <string name="cd_strip_preview">Strip preview: %1$s, %2$s</string>
+    <string name="cd_her_frame">One of her frames</string>
+    <string name="cd_selected">Selected</string>
+
+    <string name="layout_classic">Classic Strip</string>
+    <string name="layout_grid">Four Grid</string>
+    <string name="layout_trio">Trio Strip</string>
+    <string name="layout_six">Six Grid</string>
+    <string name="layout_solo">Solo Polaroid</string>
+
+    <string name="theme_milk">Milk</string>
+    <string name="theme_ink">Ink</string>
+    <string name="theme_strawberry">Strawberry Milk</string>
+    <string name="theme_cloud">Cloud Nine</string>
+    <string name="theme_matcha">Matcha Latte</string>
+    <string name="theme_lavender">Lavender Dream</string>
+    <string name="theme_butter">Butter Daisy</string>
+    <string name="theme_cherry">Cherry Blossom</string>
+    <string name="theme_film">Film</string>
+
+    <string name="filter_original">Original</string>
+    <string name="filter_mono">Mono 흑백</string>
+    <string name="filter_milky">Milky 뽀샤시</string>
+    <string name="filter_peach">Peach</string>
+    <string name="filter_cool">Soda</string>
+    <string name="filter_film">Film</string>
+
     <!-- Placeholder screens (M1 shell). Each is replaced by its real screen in a later milestone. -->
     <string name="cd_back">Back</string>
     <string name="placeholder_coming">Coming in %1$s ✿</string>
-    <string name="placeholder_setup_title">Setup</string>
-    <string name="placeholder_setup_body">Pick a layout, frame, filter and timer here.</string>
-    <string name="placeholder_setup_next">Let\'s go!</string>
+    <string name="placeholder_add_frame_title">Add a frame</string>
+    <string name="placeholder_add_frame_body">Bring in your own frame artwork, and the booth finds its photo windows.</string>
     <string name="placeholder_capture_title">Capture</string>
     <string name="placeholder_capture_body">The countdown, flash and cheesy poses happen here. Say kimchi!</string>
     <string name="placeholder_capture_next">Pick cuts</string>

@@ -25,6 +25,7 @@ import com.blaze.photobooth.R
 import com.blaze.photobooth.ui.feature.home.HomeRoute
 import com.blaze.photobooth.ui.feature.placeholder.PlaceholderAction
 import com.blaze.photobooth.ui.feature.placeholder.PlaceholderScreen
+import com.blaze.photobooth.ui.feature.setup.SetupRoute
 import com.blaze.photobooth.ui.theme.BoothMotion
 import kotlin.math.roundToInt
 
@@ -39,7 +40,7 @@ val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?
  * [SharedTransitionLayout]. Each entry gets its own saveable state and ViewModel store. Forward and back
  * use the §7 A1 slide-and-fade; predictive back scrubs the same pop animation.
  *
- * Until their milestones land, every screen except Home is a [PlaceholderScreen] that walks the real flow.
+ * Until their milestones land, every screen except Home and Setup is a [PlaceholderScreen] that walks the real flow.
  */
 @Composable
 fun BoothNavHost(modifier: Modifier = Modifier) {
@@ -68,10 +69,16 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                         )
                     }
                     entry<Setup> {
+                        SetupRoute(
+                            onBack = { backStack.removeLastOrNull() },
+                            onStart = { backStack.go(Capture) },
+                            onAddFrame = { backStack.go(AddFrame) },
+                        )
+                    }
+                    entry<AddFrame> {
                         Placeholder(
-                            emoji = "🎀", title = R.string.placeholder_setup_title, body = R.string.placeholder_setup_body,
-                            milestone = "M2", backStack = backStack,
-                            PlaceholderAction(R.string.placeholder_setup_next) { backStack.go(Capture) },
+                            emoji = "🖼️", title = R.string.placeholder_add_frame_title, body = R.string.placeholder_add_frame_body,
+                            milestone = "M7", backStack = backStack,
                         )
                     }
                     entry<Capture> {

@@ -5,7 +5,7 @@ A Korean self-photo-studio experience (think 인생네컷 *Life4Cuts*, Photoism,
 > **Built by an AI agent.** Claude (Claude Code) writes this app autonomously. This README is the **single source of truth** for what to build, how it looks and feels, how it's put together, and in what order. When a decision changes, update this file first (see the [Decision log](#18-decision-log)) and then change the code.
 
 **Target device:** Google **Pixel 9** (`tokay`, verified over adb), running **Android 17 (API 37.1)**, with a 6.3" 1080×2424 OLED at 60–120 Hz, 420 dpi density, 12 GB RAM, a 10.5 MP front and 50 MP rear camera. Portrait only.
-**Status:** M0 ✅ M1 ✅ (2026-10-20). The design system, Navigation 3 shell and the animated Home screen run on the Pixel 9; every other screen is a placeholder. Next: M2. See [Milestones](#16-milestones).
+**Status:** M0 ✅ M1 ✅ M2 ✅ (2026-10-20). Home and the full **Setup** screen run on the Pixel 9: a live strip preview drawn by the real renderer, her 5 frames plus 9 themes, 6 filters, and choices that persist. Capture onwards are still placeholders. Next: M3. See [Milestones](#16-milestones).
 **Her frames:** ✅ 5 frames processed, AI-upscaled, text removed, bundled, and **approved by her** (2026-10-20) (§5.5.6).
 
 ---
@@ -110,7 +110,8 @@ Every screen follows the same pattern: a stateful `XxxRoute` collects state from
   - *Filter:* round thumbnails showing a sample photo through each filter, with the name below.
   - *Options:* Timer (3/5/10 s segmented), Bonus shots (+0/+2/+4), Camera (Front/Back), Mirror selfies (switch).
 - **CTA:** a sticky **Let's go!** button at the bottom. Its label shows the total shots, e.g. *"Let's go! · 6 shots"*.
-- **Persistence:** every choice is saved to DataStore immediately and restored next time.
+- **Persistence:** every choice is saved to DataStore immediately and restored next time. On the very first launch, or if the saved frame no longer exists (e.g. a deleted import), the first frame in the carousel is chosen: her first frame, *Lilac Pals*.
+- *As built in M2:* the back button and the title *"Make your strip"* sit over the preview; the sheet is a fixed-height `Surface` (not a draggable sheet), so the preview takes the remaining ~55% of the screen. Theme swatches are rendered on the classic strip; her frames' swatches are her `thumb.png` drawn through the renderer with placeholders. While an image frame is selected, the Layout tab shows a *"Set by frame ♡ · Lilac Pals has 3 photo windows"* card above the dimmed layout chips. Device tilt / parallax is **not built yet** (it was optional); it's an M8 polish item.
 
 ### 4.3 Capture 📸
 - **Viewfinder:** full-bleed CameraX viewfinder **cropped to the chosen layout's cell aspect ratio** (WYSIWYG), framed by the selected frame colour with rounded 28 dp corners. The live filter is applied in real time (§9.3).
@@ -215,7 +216,7 @@ Strip anatomy (classic):
 | `cherry` | Cherry Blossom | `#FFE9EF` | `#C2185B` | falling petals |
 | `film` | Film | `#111111` | `#F5F5F5` | sprocket holes down both edges (Haru Film style) |
 
-Stickers are vector paths drawn by the renderer (no bitmap assets). They're scattered with a **seeded RNG** (seed = theme id and layout id), so placement is deterministic and identical in preview and export. They sit in margins, gaps and the footer, overlapping cell edges by at most 12 px so faces are never covered.
+Stickers are vector paths drawn by the renderer (no bitmap assets). They're scattered with a **seeded RNG** (seed = theme id and layout id), so placement is deterministic and identical in preview and export. They sit in margins, gaps and the footer, overlapping cell edges by at most 12 px so faces are never covered, and never touching the centred footer text block. As built (`render/StickerLayout.kt`): 3–4 larger stickers are placed in the footer first, either side of the text, then the margins and gaps are filled; most stickers get a white die-cut border like paper stickers.
 
 ### 5.3 Filters
 Every filter is a 4×5 `ColorMatrix`. The same matrix is used for the live viewfinder (RenderEffect), thumbnails (Compose `ColorFilter`) and export (`Paint.colorFilter`).
@@ -249,6 +250,7 @@ An image frame is **artwork with windows**. The photos are drawn *underneath* an
 - **Geometry comes from the artwork.** The canvas size is the image's own size, and the slots are the detected windows. The window count sets the number of cuts, which is **4** for her strips.
 - **Window shapes:** a slot is the window's bounding rectangle. Non-rectangular windows (rounded corners, hearts, clouds) just work, because the artwork masks the photo's edges.
 - **Capture:** the viewfinder is cropped to the aspect ratio of the slot being shot (shot *i* → slot *i*). Bonus shots use slot 1's aspect. At render time every photo is centre-cropped ("cover") into its slot.
+- **Base:** the canvas is filled white before the photos, so anything the artwork leaves see-through exports as white rather than black (JPEG has no alpha).
 - **Text:** the artwork usually has its own lettering, so the generated footer (wordmark, caption, date) is **off** for image frames. An optional `textArea` in the frame's metadata re-enables caption and date in that box.
 - **Export resolution:** the frame's native size. Frames narrower than 1200 px are upscaled ×2 with filtering so the photos stay sharp. Anything longer than 7200 px is downscaled.
 
@@ -408,6 +410,7 @@ Short, warm and playful, never childish. Examples: *"Let's go!"*, *"Say kimchi!"
 | `floatSpin` | infinite, 24 s per turn, linear | blob rotation (linear, so the turn never pauses) |
 | `release` | `spring(dampingRatio = 0.38f, stiffness = 500f)` | the overshoot when a squished button is let go (A3) |
 | `BobMillis` | 2.6 s sine loop, linear | wordmark letter bob (A2) |
+| `wobble` | infinite, 0.9 s per leg, ease-in-out | the selected card's ✓ sticker rocking ±9° (A4) |
 
 Particles drift at a constant speed per depth (9 / 15 / 24 dp/s) on a frame clock, with a slow sine sway, rather than a tween.
 
@@ -482,17 +485,22 @@ Versions are pinned in [`gradle/libs.versions.toml`](gradle/libs.versions.toml) 
 ```
 The back stack is `rememberNavBackStack(Home)`. `NavDisplay` uses `rememberSaveableStateHolderNavEntryDecorator()` and `rememberViewModelStoreNavEntryDecorator()`, wrapped in a `SharedTransitionLayout`. "Print" navigates with `backStack.removeAll { it is Setup || it is Capture || it is Pick }`, then `add(Result(id))`.
 
-As built in M1 (`ui/navigation/BoothNavHost.kt`): Nav 3 1.2.0's `NavDisplay` takes the `SharedTransitionScope` directly (`sharedTransitionScope = this`), and the scope is also exposed as `LocalSharedTransitionScope` for the A10 hero. `transitionSpec`, `popTransitionSpec` and `predictivePopTransitionSpec` implement A1. Pushing a key that's already on top is ignored (no double-tap duplicates). Leaving Result (Again! / Album) removes Result from the stack, so back never returns to it. Until their milestones, non-Home keys show a `PlaceholderScreen`: an emoji, "Coming in Mx ✿", a back button, and buttons that walk the real flow (Setup → Capture → Pick → Print → Result, Album → Detail → Edit → Pick).
+As built in M1 (`ui/navigation/BoothNavHost.kt`): Nav 3 1.2.0's `NavDisplay` takes the `SharedTransitionScope` directly (`sharedTransitionScope = this`), and the scope is also exposed as `LocalSharedTransitionScope` for the A10 hero. `transitionSpec`, `popTransitionSpec` and `predictivePopTransitionSpec` implement A1. Pushing a key that's already on top is ignored (no double-tap duplicates). Leaving Result (Again! / Album) removes Result from the stack, so back never returns to it. M2 adds `@Serializable data object AddFrame : NavKey` for the "+ Add frame" card (a placeholder until M7) and replaces the Setup placeholder with the real screen. Until their milestones, the remaining keys show a `PlaceholderScreen`: an emoji, "Coming in Mx ✿", a back button, and buttons that walk the real flow (Setup → Capture → Pick → Print → Result, Album → Detail → Edit → Pick).
 
 ### 8.4 Domain model (in-memory)
 ```kotlin
-enum class BoothLayout(rows, cols, cuts, canvasW, canvasH, margin, gap, footer)  // §5.1
-enum class FrameTheme(bg: Brush-ish spec, ink, decoration: Decoration)            // §5.2
-enum class PhotoFilter(matrix: FloatArray)                                       // §5.3
-data class BoothConfig(layout, theme, filter, timerSec, bonusShots, lens, mirror)
+enum class BoothLayout(id, rows, cols, canvasWidth, canvasHeight, margin, gap, footer) // §5.1; cuts = rows × cols
+enum class FrameTheme(id, backgroundTop, backgroundBottom, ink, decoration, stickerColors) // §5.2, ARGB ints
+enum class PhotoFilter(id, matrix: FloatArray)                                    // §5.3, built by ColorMatrices
+data class BoothConfig(layout, frameId: FrameId, filter, timerSec, bonusShots, lens, mirror)
+value class FrameId(value)            // "theme:<id>" | "asset:<id>" | "custom:<uuid>"
+data class ImageFrame(id, name, width, height, slots: List<SlotRect>, textArea, artwork, thumb)
+sealed interface FrameSource { Theme(theme); Image(frame: ImageFrame, bitmap: Bitmap) }
+data class StripSpec(frame: FrameSource, layout, filter, caption: String?, date: LocalDate?, preview: Boolean)
+    // .canvasSize, .slots, .cuts are asked of the spec, never of the frame kind (§10)
 data class Shot(index: Int, file: File, width: Int, height: Int)
-data class StripSpec(layout, theme, filter, slots: List<Shot?>, caption: String?, date: LocalDate?)
 ```
+The photos themselves are passed to the renderer next to the spec (`draw(canvas, spec, photos)`), so the same spec can be drawn with preview-size or full-size bitmaps.
 
 ---
 
@@ -529,7 +537,8 @@ Use `ImageCapture.FLASH_MODE_SCREEN` with a Compose implementation of `ImageCapt
 **One renderer, two consumers.** `StripRenderer.draw(canvas: android.graphics.Canvas, spec: StripSpec, photos: List<Bitmap?>)` draws in canvas units (§5.1 pixels).
 
 - **Export:** a `Bitmap.createBitmap(W, H, ARGB_8888)` gets drawn at 1:1, then is encoded as JPEG 95 (`strip.jpg`, about 1.5–3 MB). A 600 px-wide `thumb.jpg` is written for the album grid.
-- **Preview:** a Compose `Canvas` → `drawIntoCanvas { it.nativeCanvas.scale(viewW / W) ; draw(...) }` with *downsampled* bitmaps (≤ 600 px). It's the same code, so it's pixel-identical in composition.
+- **Preview:** a Compose `Canvas` → `drawIntoCanvas { it.nativeCanvas.scale(viewW / W) ; draw(...) }` with *downsampled* bitmaps: frame artwork at ≤ 600 px **wide** (a 1:3 strip at 600 px tall would look soft on the phone), photos at ≤ 600 px on the long edge (`BitmapOps.PreviewMaxPx`). It's the same code, so it's pixel-identical in composition; `StripRenderScreenshotTest.previewMatchesExport` checks that a 1:1 export shrunk to preview size matches the preview render.
+- *As built in M2:* `ui/components/StripPreview` is the composable; `StripRenderer.get(context)` is the app-wide instance (fonts loaded once). Each `draw` call makes its own `Paint`s, so a preview and an export can render at the same time. Empty cells in preview mode get a soft card with a little person silhouette and a heart.
 
 **Two frame kinds, one entry point.** `StripSpec.frame` is a sealed type: `FrameSource.Theme(FrameTheme)` (built-in, §5.2) or `FrameSource.Image(id, bitmap, slots, textArea)` (§5.5). Geometry comes from `LayoutGeometry` for themes and from the frame's slot list for images. Everything downstream (preview, export, Pick, Capture aspect) asks the spec for `slots` and `canvasSize`, and never asks which kind of frame it is.
 
@@ -539,7 +548,7 @@ Use `ImageCapture.FLASH_MODE_SCREEN` with a Compose implementation of `ImageCapt
 
 **Fonts on Canvas:** `android.graphics.fonts.Font.Builder(resources, R.font.fredoka).setFontVariationSettings("'wght' 600")` → `FontFamily` → `Typeface.CustomFallbackBuilder`. These are cached.
 
-**Testability:** cell-rect math lives in a pure-Kotlin `LayoutGeometry` object that's unit-tested (cells in bounds, no overlap, aspect matches spec).
+**Testability:** cell-rect math lives in a pure-Kotlin `LayoutGeometry` object that's unit-tested (cells in bounds, no overlap, aspect matches spec). Sticker placement (`StickerLayout`), cover-crop maths (`BitmapOps.coverSource`), filter matrices and `FrameSlotDetector` are pure Kotlin and unit-tested too.
 
 ---
 
@@ -612,6 +621,7 @@ App-private storage survives restarts and app updates. It's removed only on unin
 
 ### 11.6 Preferences (DataStore)
 Last `BoothConfig` choices, sound, haptics, screen flash, save-mirrored, auto-save-to-Photos.
+*Since M2:* `data/prefs/BoothPreferences` stores the `BoothConfig` in the `booth` DataStore under `setup.*` keys (layout, frame, filter, timer_sec, bonus_shots, lens, mirror). Unknown or out-of-range values fall back to defaults one field at a time; a saved frame id that no longer exists is resolved against the frame catalog by `SetupViewModel` (§4.2).
 
 ---
 
@@ -667,7 +677,7 @@ BlazePhotoBooth/
         │       ├── BoothApp.kt               ← Application + AppContainer
         │       ├── MainActivity.kt           ← edge-to-edge, splash, BoothTheme { BoothNavHost() }
         │       ├── model/                    ← BoothLayout, FrameTheme, PhotoFilter, BoothConfig, Shot, StripSpec
-        │       ├── render/                   ← StripRenderer, LayoutGeometry, FrameSlotDetector, Stickers, Filters, BitmapOps, Fonts
+        │       ├── render/                   ← StripRenderer, LayoutGeometry, FrameSlotDetector, StickerLayout, Stickers, Filters, BitmapOps, StripFonts, SampleArt
         │       ├── camera/                   ← CameraController, ComposeScreenFlash
         │       ├── data/
         │       │   ├── db/                   ← BoothDatabase, SessionDao, entities
@@ -676,7 +686,7 @@ BlazePhotoBooth/
         │       │   ├── export/               ← PhotoExporter (MediaStore), ShareHelper
         │       │   ├── prefs/                ← BoothPreferences (DataStore)
         │       │   └── SessionRepository.kt
-        │       ├── core/                     ← ReduceMotion (M1); Haptics, Sounds, Result helpers later
+        │       ├── core/                     ← ReduceMotion (M1), Haptics (M2); Sounds, Result helpers later
         │       └── ui/
         │           ├── theme/                ← Color, Type, Shape, Motion, Theme
         │           ├── components/           ← SquishyButton, FloatingParticles, BlobShape, StripPreview,
@@ -737,7 +747,7 @@ Composables render to PNG on the JVM (Robolectric native graphics at Pixel 9 siz
 ./gradlew recordRoborazziDebug     # (re)write the PNGs after an intended UI change
 ./gradlew verifyRoborazziDebug     # fail if the UI drifted from the PNGs
 ```
-Plain `testDebugUnitTest` runs them too, without comparing. The Compose test clock pauses infinite animations, so each PNG is the first frame. Gotchas: unit tests need `--add-exports/--add-opens java.base/jdk.internal.access` (set in `app/build.gradle.kts`), and a wrap-content root holding a rotated layer renders blank, so samples with blobs use `fillMaxWidth()`.
+Plain `testDebugUnitTest` runs them too, without comparing. Since M2, `StripRenderScreenshotTest` also renders the strip renderer straight into bitmaps: `her_frame_<id>.png` (each of her frames with numbered sample photos, to compare with `photo-frames/_previews/<id>_photos.jpg`), `her_frames_all.png`, `her_frames_preview.png`, `strip_layouts_<theme>.png` (every layout), `strip_themes_preview.png` (all 9 themes as Setup shows them) and `strip_filters.png`; Setup is captured on every tab (`setup_*.png`, light and dark). Sample photos are generated pastel gradients with numbers, never real people. The Compose test clock pauses infinite animations, so each PNG is the first frame. Gotchas: unit tests need `--add-exports/--add-opens java.base/jdk.internal.access` (set in `app/build.gradle.kts`). A `graphicsLayer` (scale or rotation) renders **blank if another Compose test already ran in the same JVM**, so each test class gets its own JVM (`forkEvery = 1`) and such a sample must be its class's first test (or have a class of its own).
 
 ---
 
@@ -749,7 +759,7 @@ Each milestone ends with a **green build** (`assembleDebug testDebugUnitTest lin
 |---|---|---|---|
 | **M0** ✅ | Scaffold & toolchain | JDK and SDK installed ✅, Gradle config ✅, manifest ✅, fonts ✅, Gradle wrapper ✅, app icon and splash ✅, `git init` ✅ | Empty themed app launches on the phone ✅ (2026-10-20) |
 | **M1** ✅ | Design system & shell | `ui/theme` (colour, type, shape, motion) ✅, core components (SquishyButton, FloatingParticles, BlobShape) ✅, Nav 3 shell with all keys as placeholder screens ✅, Home screen complete ✅, settings sheet shell ✅, Roborazzi screenshot tests ✅ | Home looks and animates as in §4.1; navigation and predictive back work ✅ (2026-10-20) |
-| **M2** | Catalog & renderer | `model/` catalog (§5), `LayoutGeometry` and tests, `FrameSource` (theme **and image** frames), `FrameSlotDetector` with synthetic-frame tests (§5.5.2), `StripRenderer` with stickers and fonts, `StripPreview` composable, `FrameRepository` (bundled `frames.json`), **Setup** screen with DataStore persistence, plus **one placeholder image frame** (a 4-window strip the agent draws) to prove the pipeline | Changing layout, frame or filter updates the live preview instantly; the placeholder image frame previews with 4 windows |
+| **M2** ✅ | Catalog & renderer | `model/` catalog (§5) ✅, `LayoutGeometry` and tests ✅, `FrameSource` (theme **and image** frames) ✅, `FrameSlotDetector` with synthetic-frame tests (§5.5.2) ✅, `StripRenderer` with stickers and fonts ✅, `StripPreview` composable ✅, `FrameRepository` (bundled `frames.json`) ✅, **Setup** screen with DataStore persistence ✅. Her 5 real bundled frames are the proof of the image-frame pipeline | Changing layout, frame or filter updates the live preview instantly; her frames preview with their windows filled; settings survive a restart ✅ (2026-10-20) |
 | **M3** | Capture | Camera permission flow, CameraController, filtered and cropped viewfinder, countdown sequence, flash, sound, haptics, screen flash, shot pipeline (§9.4), draft store | A full sequence of N shots lands in `_draft/` upright and correctly cropped |
 | **M4** | Pick & Result | Pick interactions (§4.4), retake-one, caption and date, Print → render → finalise session (Room and files), Result printing reveal and confetti | The printed strip matches the preview exactly; the session appears in the DB |
 | **M5** | Album & Detail | Album grid with month headers, favourites, filters, multi-select; Detail with shared element, pager, soft delete with Undo, Edit (re-pick, re-frame) | Browse, favourite, delete/undo and edit all work after an app restart |
@@ -818,6 +828,17 @@ Rules Claude follows while building this app:
 | 2026-10-20 | Home data comes through a `HomeSource` interface, with an `EmptyHomeSource` stub until M3/M5 | Home's badge, strip peek and draft card can be built and previewed now, and light up later with no UI changes. |
 | 2026-10-20 | Placeholder screens walk the real flow (Setup → Capture → Pick → Result, Album → Detail → Edit) | Every Nav key and predictive back can be tried before the real screens exist. |
 | 2026-10-20 | Brand colours with no Material slot (mint, sky, Home gradient, raised surface) live in `BoothExtraColors` (`BoothTheme.extraColors`) | Keeps the §6.1 palette in one place for light and dark. The dark gradient ends in plum `#3A2342`, and raised controls use `#3B3141` so they stand out on midnight. |
+| 2026-10-20 | M2 drops the "placeholder image frame the agent draws" | Her 5 real frames are bundled and approved, so they prove the image-frame pipeline better than a drawn stand-in. |
+| 2026-10-20 | First-launch (and missing-frame) default is the **first frame in the carousel**, her *Lilac Pals*; `BoothConfig()`'s own default stays `theme:strawberry` | The app is her gift: opening Setup on one of her frames is the nicer first impression. A model default that doesn't depend on the asset catalog keeps tests and previews simple. |
+| 2026-10-20 | Preview artwork is downsampled to ≤ 600 px **wide** (photos: ≤ 600 px long edge) | §10 said ≤ 600 px; on the long edge a 1:3 strip would be only 200 px wide and look soft on the phone. 600×1800 ARGB is about 4 MB, which is fine. |
+| 2026-10-20 | Image frames are drawn on a white base (§5.5.1) | Exports are JPEG; any see-through edge in the artwork would otherwise turn black. |
+| 2026-10-20 | `StickerLayout` places footer stickers first and keeps a centred text block (≤ 64% of the width) clear | Uniform scattering left the narrow strips' footers bare; real booth strips decorate the foot. Tested: no sticker reaches more than 12 px into a cell or touches the text. |
+| 2026-10-20 | Filter matrices are built from small pure helpers (`ColorMatrices`: saturation, contrast, tint, lift-and-fade, concat) and tuned by eye on the sample scene; unit tests pin each description (e.g. Milky lifts blacks above 35, Soda's blue beats red by 15) | Readable and testable, and the same matrix feeds Paint, Compose and (M3) RenderEffect. |
+| 2026-10-20 | `FrameSlotDetector` uses the pipeline's "core rect" (rows and columns under 10% of the busiest are trimmed) and grows slots by 3 px unless that makes them touch; Mode B keys only pixels inside or next to the chosen region | The same tricks worked on her real frames in `process_frames.py`: thin leaks along outlines don't stretch a slot, and same-coloured characters stay opaque. |
+| 2026-10-20 | Device tilt / parallax on the Setup preview is deferred to M8 | It was optional in §4.2; the spring and cross-fade (A4) are in, and both honour reduce motion. |
+| 2026-10-20 | New motion token `wobble` (0.9 s) for the ✓ sticker | The `Float` family is 6–12 s per leg, far too slow to read as a wobble. |
+| 2026-10-20 | Selected segmented buttons use `primaryContainer`, not Material's default `secondaryContainer` | The butter `secondaryContainer` turns a muddy olive in dark mode. |
+| 2026-10-20 | Unit tests run with `forkEvery = 1` (a fresh JVM per test class); the squishy-button screenshot has its own class and `blobShapes` runs first in `BoothScreenshotTest` (`@FixMethodOrder`) | Robolectric draws `graphicsLayer` content (the squish, the blob spin) **blank once another Compose test has run in the same JVM**. That is why `blob_shapes.png` was blank in M1, and adding M2's tests made the squish sample flaky too. It is the real cause behind the M1 "wrap-content root" gotcha. |
 | 2026-10-20 | Decorative icons next to a text label (settings rows, the My Album button) use `contentDescription = null`; every icon button and standalone icon has one | Otherwise TalkBack reads each label twice. |
 
 ---

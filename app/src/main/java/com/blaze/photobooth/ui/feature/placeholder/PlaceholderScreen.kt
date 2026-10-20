@@ -148,11 +148,11 @@ private fun PlaceholderDarkPreview() {
 @Composable
 internal fun PlaceholderSample() {
     PlaceholderScreen(
-        emoji = "🎀",
-        title = R.string.placeholder_setup_title,
-        body = R.string.placeholder_setup_body,
-        milestone = "M2",
+        emoji = "📸",
+        title = R.string.placeholder_capture_title,
+        body = R.string.placeholder_capture_body,
+        milestone = "M3",
         onBack = {},
-        actions = listOf(PlaceholderAction(R.string.placeholder_setup_next) {}),
+        actions = listOf(PlaceholderAction(R.string.placeholder_capture_next) {}),
     )
 }

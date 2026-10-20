@@ -9,18 +9,21 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.blaze.photobooth.ui.components.BlobShapeSamples
-import com.blaze.photobooth.ui.components.SquishyButtonSamples
 import com.blaze.photobooth.ui.feature.home.HomeScreen
 import com.blaze.photobooth.ui.feature.home.HomeUiState
 import com.blaze.photobooth.ui.feature.home.SampleFilledHomeState
 import com.blaze.photobooth.ui.feature.placeholder.PlaceholderSample
+import com.blaze.photobooth.ui.feature.setup.SetupScreen
+import com.blaze.photobooth.ui.feature.setup.SetupTab
 import com.blaze.photobooth.ui.feature.settings.SettingsSheetContent
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.SheetShape
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.FixMethodOrder
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.junit.runners.MethodSorters
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -32,6 +35,9 @@ import org.robolectric.annotation.GraphicsMode
  * `./gradlew verifyRoborazziDebug` fails if the UI drifts from them.
  */
 @RunWith(AndroidJUnit4::class)
+// Fixed order: in Robolectric, graphicsLayer samples (the blob spin) render blank after other Compose
+// tests in the same JVM, so blobShapes runs first (alphabetically). Each test class gets its own JVM (build.gradle.kts).
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = Pixel9Qualifiers)
 class BoothScreenshotTest {
@@ -60,17 +66,12 @@ class BoothScreenshotTest {
     }
 
     @Test
-    fun squishyButtons() = snap("squishy_buttons") {
-        BoothTheme(darkTheme = false, reduceMotion = false) { SquishyButtonSamples() }
-    }
-
-    @Test
     fun blobShapes() = snap("blob_shapes") {
         BoothTheme(darkTheme = false, reduceMotion = false) { BlobShapeSamples() }
     }
 
     @Test
-    fun placeholderDark() = snap("placeholder_setup_dark") {
+    fun placeholderDark() = snap("placeholder_capture_dark") {
         BoothTheme(darkTheme = true, reduceMotion = false) { PlaceholderSample() }
     }
 
@@ -84,7 +85,54 @@ class BoothScreenshotTest {
             ) { SettingsSheetContent() }
         }
     }
+
+    // ---- Setup (§4.2) ----
+
+    @Test
+    fun setupLight() = snap("setup_layout_light") {
+        BoothTheme(darkTheme = false, reduceMotion = true) { SetupScreen(SetupSamples.theme(), onEvent = {}) }
+    }
+
+    @Test
+    fun setupDark() = snap("setup_layout_dark") {
+        BoothTheme(darkTheme = true, reduceMotion = true) { SetupScreen(SetupSamples.theme(), onEvent = {}) }
+    }
+
+    @Test
+    fun setupFramesHerFrameDark() = snap("setup_frame_her_dark") {
+        BoothTheme(darkTheme = true, reduceMotion = true) {
+            SetupScreen(SetupSamples.herFrame(context()), onEvent = {}, initialTab = SetupTab.Frame)
+        }
+    }
+
+    @Test
+    fun setupFramesThemeLight() = snap("setup_frame_theme_light") {
+        BoothTheme(darkTheme = false, reduceMotion = true) {
+            SetupScreen(SetupSamples.theme(context()), onEvent = {}, initialTab = SetupTab.Frame)
+        }
+    }
+
+    @Test
+    fun setupSetByFrameDark() = snap("setup_layout_set_by_frame_dark") {
+        BoothTheme(darkTheme = true, reduceMotion = true) { SetupScreen(SetupSamples.herFrame(context()), onEvent = {}) }
+    }
+
+    @Test
+    fun setupFilterLight() = snap("setup_filter_light") {
+        BoothTheme(darkTheme = false, reduceMotion = true) {
+            SetupScreen(SetupSamples.theme(context(), filter = true), onEvent = {}, initialTab = SetupTab.Filter)
+        }
+    }
+
+    @Test
+    fun setupOptionsDark() = snap("setup_options_dark") {
+        BoothTheme(darkTheme = true, reduceMotion = true) {
+            SetupScreen(SetupSamples.theme(), onEvent = {}, initialTab = SetupTab.Options)
+        }
+    }
+
+    private fun context() = org.robolectric.RuntimeEnvironment.getApplication()
 }
 
 /** Pixel 9: 1080×2424 px at 420 dpi. */
-private const val Pixel9Qualifiers = "w411dp-h923dp-port-420dpi"
+internal const val Pixel9Qualifiers = "w411dp-h923dp-port-420dpi"

@@ -9,6 +9,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object Setup : NavKey
 
+/** The import flow for a new image frame (§4.9), opened from Setup's "+ Add frame" card. Built in M7. */
+@Serializable data object AddFrame : NavKey
+
 @Serializable data object Capture : NavKey
 
 @Serializable data class Pick(val editSessionId: String? = null) : NavKey
