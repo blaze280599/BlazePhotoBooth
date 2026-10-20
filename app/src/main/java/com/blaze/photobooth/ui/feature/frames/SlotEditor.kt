@@ -300,7 +300,7 @@ private fun EditorBar(editor: EditorUiState, onEvent: (AddFrameEvent) -> Unit) {
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier
                         .weight(1.3f)
-                        .height(56.dp),
+                        .heightIn(min = 56.dp),
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
@@ -319,7 +319,7 @@ private fun EditorBar(editor: EditorUiState, onEvent: (AddFrameEvent) -> Unit) {
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .height(56.dp),
+                        .heightIn(min = 56.dp),
                 ) {
                     Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))

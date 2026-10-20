@@ -121,12 +121,13 @@ fun ExportAction(
                 }
             }
         }
+        // Two lines, so "Save photos" still fits with big fonts (§6.7).
         Text(
             text,
             style = MaterialTheme.typography.labelMedium,
             color = colors.onSurface,
             textAlign = TextAlign.Center,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp),
         )

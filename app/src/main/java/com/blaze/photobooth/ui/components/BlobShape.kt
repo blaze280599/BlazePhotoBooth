@@ -27,14 +27,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.MutableCubic
-import com.blaze.photobooth.R
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.ui.theme.BlobPolygons
 import com.blaze.photobooth.ui.theme.BoothMotion
@@ -53,7 +51,7 @@ fun BlobShape(
     modifier: Modifier = Modifier,
     from: RoundedPolygon = BlobPolygons.Cookie,
     to: RoundedPolygon = BlobPolygons.Flower,
-    brush: Brush = Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)),
+    brush: Brush = Brush.linearGradient(listOf(BoothTheme.extraColors.candy, MaterialTheme.colorScheme.tertiary)),
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val morph = remember(from, to) { Morph(from, to) }
@@ -112,13 +110,13 @@ private class MorphPath(private val morph: Morph, private val radius: Float) {
     }
 }
 
-/** Home logo (§4.1): the morphing blob with a camera glyph inside. */
+/** Home logo (§4.1): the morphing blob with a camera glyph inside. Decorative: the wordmark under it names the app. */
 @Composable
 fun BlobLogo(modifier: Modifier = Modifier, size: Dp = 184.dp) {
     BlobShape(modifier.size(size)) {
         Icon(
             imageVector = Icons.Rounded.PhotoCamera,
-            contentDescription = stringResource(R.string.cd_logo_camera),
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(size * 0.36f),
         )

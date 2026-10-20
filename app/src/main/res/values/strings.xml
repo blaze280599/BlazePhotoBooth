@@ -6,9 +6,10 @@
     <string name="home_tagline">오늘의 네컷 · today\'s four cuts</string>
     <string name="home_start">Start ✿</string>
     <string name="home_album">My Album</string>
-    <string name="cd_logo_camera">Blaze Booth camera</string>
     <string name="cd_settings">Settings</string>
-    <string name="cd_recent_strip">Your latest strip. Opens it.</string>
+    <string name="cd_recent_strip">Your latest strip</string>
+    <string name="cd_open">Open</string>
+    <string name="home_album_many" translatable="false">99+</string>
     <plurals name="cd_album_count">
         <item quantity="one">%d strip in your album</item>
         <item quantity="other">%d strips in your album</item>
@@ -20,7 +21,7 @@
     <string name="home_draft_continue">Continue</string>
     <string name="home_draft_discard">Discard</string>
 
-    <!-- Settings sheet (§4.8). Live since M6, except Manage frames (M7). -->
+    <!-- Settings sheet (§4.8) -->
     <string name="settings_title">Settings</string>
     <string name="settings_note">Make the booth yours ✿</string>
     <string name="settings_sounds">Shutter &amp; countdown sounds</string>
@@ -79,8 +80,15 @@
     <string name="setup_back_flash_off">Off</string>
     <string name="setup_back_flash_auto">Auto</string>
     <string name="cd_strip_preview">Strip preview: %1$s, %2$s</string>
-    <string name="cd_her_frame">One of her frames</string>
-    <string name="cd_selected">Selected</string>
+    <string name="cd_her_frame_named">%1$s, one of her frames</string>
+    <plurals name="cd_setup_timer">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+    <plurals name="cd_setup_bonus">
+        <item quantity="one">%d bonus shot</item>
+        <item quantity="other">%d bonus shots</item>
+    </plurals>
 
     <string name="layout_classic">Classic Strip</string>
     <string name="layout_grid">Four Grid</string>
@@ -143,6 +151,8 @@
     <string name="capture_storage_body">There\'s less than 50 MB free, so some photos might not save.</string>
     <string name="capture_storage_go">Take photos anyway</string>
     <string name="capture_storage_cancel">Not now</string>
+    <string name="capture_permission_emoji" translatable="false">📸</string>
+    <string name="capture_error_emoji" translatable="false">😴</string>
     <string name="capture_permission_title">Camera time!</string>
     <string name="capture_permission_body">We need your camera to take cute photos 📸</string>
     <string name="capture_permission_allow">Allow camera</string>
@@ -176,7 +186,7 @@
     <string name="pick_caption_placeholder">우리 둘 ♡ best day</string>
     <string name="pick_caption_count">%1$d / %2$d</string>
     <string name="pick_date">Date stamp</string>
-    <string name="pick_date_hint">Prints today\'s date under the caption</string>
+    <string name="pick_date_hint">Prints the date under the caption</string>
     <string name="pick_text_her_frame">Her frames carry their own artwork, so a caption and date don\'t print on them ♡</string>
     <string name="pick_peek_title">Shot %d</string>
     <string name="pick_peek_title_bonus">Shot %d ✦ bonus</string>
@@ -196,10 +206,13 @@
         <item quantity="one">Your strip: %1$d of %2$d slot filled</item>
         <item quantity="other">Your strip: %1$d of %2$d slots filled</item>
     </plurals>
-    <string name="cd_pick_slot_empty">Slot %d, empty</string>
-    <string name="cd_pick_slot_filled">Slot %d. Tap to empty it</string>
-    <string name="cd_pick_shot">Shot %d. Tap to place it</string>
-    <string name="cd_pick_shot_placed">Shot %1$d, in slot %2$d. Tap to take it out</string>
+    <string name="cd_pick_slot_empty">Slot %1$d of %2$d, empty</string>
+    <string name="cd_pick_slot_filled">Slot %1$d of %2$d, filled</string>
+    <string name="cd_pick_shot_bonus">Shot %d, bonus</string>
+    <string name="cd_pick_shot_in_slot">In slot %d</string>
+    <string name="cd_pick_shot_unused">Not in the strip</string>
+    <string name="cd_pick_place">Put it in the strip</string>
+    <string name="cd_pick_take_out">Take it out</string>
     <string name="cd_pick_peek">Peek</string>
     <string name="cd_pick_peek_close">Close</string>
 
@@ -219,12 +232,7 @@
 
     <string name="cd_shot">Shot %d</string>
 
-    <!-- Placeholder screens (M1 shell). Each is replaced by its real screen in a later milestone. -->
     <string name="cd_back">Back</string>
-    <string name="placeholder_coming">Coming in %1$s ✿</string>
-    <string name="placeholder_capture_title">Capture</string>
-    <string name="placeholder_capture_body">The countdown, flash and cheesy poses happen here. Say kimchi!</string>
-    <string name="placeholder_capture_next">Pick cuts</string>
 
     <!-- Pick in edit mode (§4.7) -->
     <string name="pick_edit_title">Edit your strip</string>
@@ -330,6 +338,7 @@
     <string name="add_frame_saving">Saving your frame…</string>
     <string name="add_frame_saved">Added to Her frames ♡</string>
     <string name="add_frame_save_failed">Couldn\'t save the frame. Try again?</string>
+    <string name="add_frame_open_failed_emoji" translatable="false">🖼️</string>
     <string name="add_frame_open_failed_title">Couldn\'t open that picture</string>
     <string name="add_frame_open_failed_body">Try a PNG or JPG frame from your gallery.</string>
     <string name="add_frame_pick_another">Pick another</string>
@@ -388,7 +397,7 @@
     <string name="manage_delete_title">Delete “%1$s”?</string>
     <string name="manage_delete_body_unused">It will be removed from your booth.</string>
     <plurals name="manage_delete_body_used">
-        <item quantity="one">It\'s in %d of your strips, so it\'ll be hidden instead, and that strip can still be edited.</item>
+        <item quantity="one">It\'s in one of your strips, so it\'ll be hidden instead, and that strip can still be edited.</item>
         <item quantity="other">It\'s in %d of your strips, so it\'ll be hidden instead, and those strips can still be edited.</item>
     </plurals>
     <string name="manage_delete_confirm">Delete</string>

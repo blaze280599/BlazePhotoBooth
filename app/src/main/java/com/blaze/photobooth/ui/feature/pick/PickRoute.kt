@@ -89,6 +89,11 @@ fun PickRoute(
             when (event) {
                 PickEvent.Back -> if (editing) onCancelEdit() else confirmRetakeAll = true
                 PickEvent.Close -> if (editing) onCancelEdit() else confirmDiscard = true
+                // Choosing a frame or filter, or flipping the date, ticks like Setup's choices (§6.5).
+                is PickEvent.SelectFrame, is PickEvent.SelectFilter, is PickEvent.SetShowDate -> {
+                    haptics.segmentTick()
+                    viewModel.onEvent(event)
+                }
                 is PickEvent.Retake -> {
                     viewModel.onEvent(PickEvent.DismissPeek)
                     onRetake(event.index)

@@ -171,12 +171,12 @@ private class ParticleGlyphs {
     }
 }
 
-/** Palette for particles on the Home gradient: strawberry, butter, lavender, mint and sky. */
+/** Palette for particles on the Home gradient: strawberry (the decor pink), butter, lavender, mint and sky. */
 @Composable
 fun boothParticleColors(): List<Color> {
     val scheme = MaterialTheme.colorScheme
     val extra = BoothTheme.extraColors
-    return remember(scheme, extra) { listOf(scheme.primary, scheme.secondary, scheme.tertiary, extra.mint, extra.sky) }
+    return remember(scheme, extra) { listOf(extra.candy, scheme.secondary, scheme.tertiary, extra.mint, extra.sky) }
 }
 
 @Preview(name = "Particles", widthDp = 360, heightDp = 480)

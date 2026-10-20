@@ -92,14 +92,16 @@ object ConfettiPhysics {
 }
 
 /**
- * Draws [particles] [seconds] after the burst, all in one Canvas (§7 performance rules). Nothing is drawn
- * before 0 or after the burst ends. Decorative, so it's hidden from TalkBack.
+ * Draws [particles] [seconds] after the burst, all in one Canvas (§7 performance rules). [seconds] is read only while
+ * drawing, so the burst redraws one canvas per frame and never recomposes. Nothing is drawn before 0 or after the
+ * burst ends. Decorative, so it's hidden from TalkBack.
  */
 @Composable
-fun Confetti(particles: List<ConfettiParticle>, seconds: Float, colors: List<Color>, modifier: Modifier = Modifier) {
+fun Confetti(particles: List<ConfettiParticle>, seconds: () -> Float, colors: List<Color>, modifier: Modifier = Modifier) {
     val heart = remember { heartPath() }
     val star = remember { starPath() }
     Canvas(modifier.clearAndSetSemantics {}) {
+        val seconds = seconds()
         if (seconds <= 0f || seconds >= ConfettiPhysics.DurationSeconds) return@Canvas
         val alpha = ConfettiPhysics.alpha(seconds)
         val w = size.width

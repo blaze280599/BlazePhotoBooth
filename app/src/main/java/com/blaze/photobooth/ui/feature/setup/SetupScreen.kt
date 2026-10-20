@@ -15,6 +15,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,12 +26,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -39,6 +42,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -90,6 +94,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.blaze.photobooth.R
+import com.blaze.photobooth.core.Calm
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.core.rememberBoothHaptics
 import com.blaze.photobooth.data.frames.FrameOption
@@ -104,8 +109,12 @@ import com.blaze.photobooth.model.StripSpec
 import com.blaze.photobooth.render.Filters
 import com.blaze.photobooth.render.LayoutGeometry
 import com.blaze.photobooth.ui.components.BoothTabRow
+import com.blaze.photobooth.ui.components.FitText
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.StripPreview
+import com.blaze.photobooth.ui.components.growWithFont
+import com.blaze.photobooth.ui.components.isLargeFont
+import com.blaze.photobooth.ui.components.rememberDeviceTilt
 import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.SheetShape
@@ -163,7 +172,7 @@ fun SetupScreen(
                     state = pagerState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(PageHeight),
+                        .height(PageHeight.growWithFont(textShare = 0.8f)),
                     verticalAlignment = Alignment.Top,
                 ) { page ->
                     when (SetupTab.entries[page]) {
@@ -179,11 +188,12 @@ fun SetupScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
-                        .height(60.dp),
+                        .heightIn(min = 60.dp),
                     contentPadding = PaddingValues(horizontal = 24.dp),
                 ) {
                     Text(
                         pluralStringResource(R.plurals.setup_cta, state.totalShots, state.totalShots),
+                        textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.titleLarge,
                     )
                 }
@@ -199,6 +209,8 @@ private val PageHeight = 232.dp
 @Composable
 private fun PreviewArea(state: SetupUiState, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val reduceMotion = LocalReduceMotion.current
+    // §4.2: the strip leans a little (±3°) as the phone tilts, and drifts a few dp for depth. Off with reduce motion.
+    val tilt = rememberDeviceTilt(enabled = !reduceMotion)
     Box(modifier) {
         val spec = state.preview
         if (spec != null) {
@@ -221,7 +233,19 @@ private fun PreviewArea(state: SetupUiState, onBack: () -> Unit, modifier: Modif
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 28.dp, end = 28.dp, top = 56.dp, bottom = 20.dp),
+                    .padding(start = 28.dp, end = 28.dp, top = 56.dp, bottom = 20.dp)
+                    .graphicsLayer {
+                        // Read only here: a sensor update redraws this layer and never recomposes (§7 performance).
+                        val rx = tilt.rotationX
+                        val ry = tilt.rotationY
+                        if (rx != 0f || ry != 0f) {
+                            rotationX = rx
+                            rotationY = ry
+                            translationX = ry * ParallaxPerDegree.toPx()
+                            translationY = -rx * ParallaxPerDegree.toPx()
+                            cameraDistance = 16f * density
+                        }
+                    },
                 label = "preview",
             ) { target ->
                 StripPreview(
@@ -255,12 +279,15 @@ private fun PreviewArea(state: SetupUiState, onBack: () -> Unit, modifier: Modif
     }
 }
 
+/** How far the preview drifts per degree of lean: at most 3 × 2 = 6 dp. */
+private val ParallaxPerDegree = 2.dp
+
 // ---- Layout tab ----
 
 @Composable
 private fun LayoutPage(state: SetupUiState, onEvent: (SetupEvent) -> Unit) {
     val locked = state.layoutSetByFrame
-    Column(Modifier.fillMaxSize().padding(top = 14.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 14.dp)) {
         if (locked) {
             val frameName = state.selectedFrame?.displayName().orEmpty()
             Surface(
@@ -303,7 +330,7 @@ private fun LayoutPage(state: SetupUiState, onEvent: (SetupEvent) -> Unit) {
 
 @Composable
 private fun LayoutChip(layout: BoothLayout, selected: Boolean, enabled: Boolean, compact: Boolean, onClick: () -> Unit) {
-    val scale by animateFloatAsState(if (selected) 1.06f else 1f, BoothMotion.bouncy(), label = "chip")
+    val scale by animateFloatAsState(if (selected) 1.06f else 1f, Calm.spec(LocalReduceMotion.current, BoothMotion.bouncy()), label = "chip")
     val colors = MaterialTheme.colorScheme
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -324,13 +351,10 @@ private fun LayoutChip(layout: BoothLayout, selected: Boolean, enabled: Boolean,
         ) {
             MiniLayoutDiagram(layout, Modifier.size(width = 56.dp, height = if (compact) 44.dp else 80.dp))
             Spacer(Modifier.height(8.dp))
-            Text(
+            FitText(
                 stringResource(layout.nameRes),
                 style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center,
                 maxLines = 2,
-                minLines = if (compact) 1 else 2,
-                overflow = TextOverflow.Ellipsis,
                 color = colors.onSurface,
             )
             // While a frame sets the layout, the chips are only a dimmed reminder, so they stay short.
@@ -414,51 +438,60 @@ private fun GroupLabel(text: String?) {
         maxLines = 1,
         softWrap = false,
         modifier = Modifier
-            .height(20.dp)
+            // A group's label may run on over the next cards (their own labels are empty), e.g. with big fonts.
+            .wrapContentWidth(Alignment.Start, unbounded = true)
+            .heightIn(min = 20.dp)
             .then(if (text == null) Modifier.clearAndSetSemantics {} else Modifier.semantics { heading() }),
     )
 }
 
 @Composable
 internal fun FrameCard(card: FrameCardState, groupLabel: String?, selected: Boolean, onClick: () -> Unit) {
-    val scale by animateFloatAsState(if (selected) 1.08f else 1f, BoothMotion.bouncy(), label = "card")
+    val reduceMotion = LocalReduceMotion.current
+    val scale by animateFloatAsState(if (selected) 1.08f else 1f, Calm.spec(reduceMotion, BoothMotion.bouncy()), label = "card")
     val colors = MaterialTheme.colorScheme
     val swatch = remember(card) { swatchSpec(card.option, card.thumbnail) }
+    val name = card.option.displayName()
+    val description = if (card.option is FrameOption.Artwork) stringResource(R.string.cd_her_frame_named, name) else name
     Column(Modifier.width(CardWidth)) {
         GroupLabel(groupLabel)
-        Box(
+        // The swatch and its name are one tap target and one TalkBack stop: "Lilac Pals, one of her frames, selected".
+        Column(
             Modifier
-                .padding(top = 6.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }
-                .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+                .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+                .clearAndSetSemantics { contentDescription = description },
         ) {
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = colors.surfaceContainerLowest,
-                border = androidx.compose.foundation.BorderStroke(if (selected) 3.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant),
-                modifier = Modifier.size(CardWidth, CardHeight),
+            Box(
+                Modifier
+                    .padding(top = 6.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    },
             ) {
-                Box(Modifier.padding(8.dp), contentAlignment = Alignment.Center) {
-                    if (swatch != null) StripPreview(swatch, Modifier.fillMaxHeight())
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = colors.surfaceContainerLowest,
+                    border = androidx.compose.foundation.BorderStroke(if (selected) 3.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant),
+                    modifier = Modifier.size(CardWidth, CardHeight),
+                ) {
+                    Box(Modifier.padding(8.dp), contentAlignment = Alignment.Center) {
+                        if (swatch != null) StripPreview(swatch, Modifier.fillMaxHeight())
+                    }
                 }
+                if (card.option is FrameOption.Artwork) HerFrameBadge(Modifier.align(Alignment.TopStart).offset((-6).dp, (-6).dp))
+                SelectedSticker(selected, Modifier.align(Alignment.TopEnd).offset(8.dp, (-8).dp))
             }
-            if (card.option is FrameOption.Artwork) HerFrameBadge(Modifier.align(Alignment.TopStart).offset((-6).dp, (-6).dp))
-            SelectedSticker(selected, Modifier.align(Alignment.TopEnd).offset(8.dp, (-8).dp))
+            FitText(
+                text = name,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) colors.primary else colors.onSurface,
+                maxLines = 2,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
         }
-        Text(
-            text = card.option.displayName(),
-            style = MaterialTheme.typography.labelMedium,
-            color = if (selected) colors.primary else colors.onSurface,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-        )
     }
 }
 
@@ -468,29 +501,31 @@ private fun swatchSpec(option: FrameOption, thumbnail: Bitmap?): StripSpec? = wh
     is FrameOption.Artwork -> thumbnail?.let { StripSpec(FrameSource.Image(option.frame, it), preview = true) }
 }
 
+/** The ♡ badge on her frames' cards. Decorative: the card says "one of her frames" to TalkBack. */
 @Composable
 private fun HerFrameBadge(modifier: Modifier = Modifier) {
-    val description = stringResource(R.string.cd_her_frame)
     Box(
         modifier
             .size(26.dp)
             .shadow(2.dp, CircleShape)
-            .background(BoothTheme.extraColors.raised, CircleShape)
-            .semantics { contentDescription = description },
+            .background(BoothTheme.extraColors.raised, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(Icons.Rounded.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
     }
 }
 
-/** The ✓ sticker on the selected card: pops in with a bounce, then wobbles gently (§7 A4). */
+/**
+ * The ✓ sticker on the selected card: pops in with a bounce, then wobbles gently (§7 A4). With reduce motion it
+ * fades in and holds still. Decorative: the card's own "selected" state is what TalkBack reads.
+ */
 @Composable
 private fun SelectedSticker(visible: Boolean, modifier: Modifier = Modifier) {
     val reduceMotion = LocalReduceMotion.current
     AnimatedVisibility(
         visible = visible,
-        enter = scaleIn(BoothMotion.bouncy()) + fadeIn(),
-        exit = scaleOut(BoothMotion.snappy()) + fadeOut(),
+        enter = Calm.enter(reduceMotion, scaleIn(BoothMotion.bouncy()) + fadeIn()),
+        exit = Calm.exit(reduceMotion, scaleOut(BoothMotion.snappy()) + fadeOut()),
         modifier = modifier,
     ) {
         val wobble: State<Float> = if (reduceMotion) {
@@ -498,15 +533,13 @@ private fun SelectedSticker(visible: Boolean, modifier: Modifier = Modifier) {
         } else {
             rememberInfiniteTransition(label = "wobble").animateFloat(-9f, 9f, BoothMotion.wobble(), label = "tilt")
         }
-        val description = stringResource(R.string.cd_selected)
         Box(
             Modifier
                 .graphicsLayer { rotationZ = wobble.value }
                 .size(28.dp)
                 .shadow(3.dp, CircleShape)
                 .background(MaterialTheme.colorScheme.primary, CircleShape)
-                .border(2.dp, BoothTheme.extraColors.raised, CircleShape)
-                .semantics { contentDescription = description },
+                .border(2.dp, BoothTheme.extraColors.raised, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
@@ -519,35 +552,37 @@ private fun AddFrameCard(onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.width(CardWidth)) {
         GroupLabel(null)
-        Box(
-            Modifier
-                .padding(top = 6.dp)
-                .size(CardWidth, CardHeight)
-                .clip(MaterialTheme.shapes.small)
-                .drawBehind {
-                    val stroke = 2.dp.toPx()
-                    drawRoundRect(
-                        color = colors.primary,
-                        topLeft = Offset(stroke / 2, stroke / 2),
-                        size = Size(size.width - stroke, size.height - stroke),
-                        cornerRadius = CornerRadius(12.dp.toPx()),
-                        style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))),
-                    )
-                }
-                .selectable(selected = false, role = Role.Button, onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Rounded.Add, contentDescription = null, tint = colors.primary, modifier = Modifier.size(32.dp))
+        // The dashed card and its label are one button.
+        Column(Modifier.clickable(role = Role.Button, onClick = onClick)) {
+            Box(
+                Modifier
+                    .padding(top = 6.dp)
+                    .size(CardWidth, CardHeight)
+                    .clip(MaterialTheme.shapes.small)
+                    .drawBehind {
+                        val stroke = 2.dp.toPx()
+                        drawRoundRect(
+                            color = colors.primary,
+                            topLeft = Offset(stroke / 2, stroke / 2),
+                            size = Size(size.width - stroke, size.height - stroke),
+                            cornerRadius = CornerRadius(12.dp.toPx()),
+                            style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))),
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, tint = colors.primary, modifier = Modifier.size(32.dp))
+            }
+            Text(
+                text = stringResource(R.string.setup_add_frame),
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
         }
-        Text(
-            text = stringResource(R.string.setup_add_frame),
-            style = MaterialTheme.typography.labelMedium,
-            color = colors.primary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-        )
     }
 }
 
@@ -575,7 +610,7 @@ private fun FilterPage(state: SetupUiState, onEvent: (SetupEvent) -> Unit) {
 
 @Composable
 internal fun FilterThumb(filter: PhotoFilter, sample: Bitmap?, selected: Boolean, onClick: () -> Unit) {
-    val scale by animateFloatAsState(if (selected) 1.08f else 1f, BoothMotion.bouncy(), label = "filter")
+    val scale by animateFloatAsState(if (selected) 1.08f else 1f, Calm.spec(LocalReduceMotion.current, BoothMotion.bouncy()), label = "filter")
     val colors = MaterialTheme.colorScheme
     val image = remember(sample) { sample?.asImageBitmap() }
     Column(
@@ -606,11 +641,10 @@ internal fun FilterThumb(filter: PhotoFilter, sample: Bitmap?, selected: Boolean
                 )
             }
         }
-        Text(
+        FitText(
             stringResource(filter.nameRes),
             style = MaterialTheme.typography.labelMedium,
             color = if (selected) colors.primary else colors.onSurface,
-            textAlign = TextAlign.Center,
             maxLines = 2,
             modifier = Modifier.padding(top = 10.dp),
         )
@@ -633,14 +667,16 @@ private fun OptionsPage(config: BoothConfig, onEvent: (SetupEvent) -> Unit) {
                 values = BoothConfig.TimerChoices,
                 selected = config.timerSec,
                 label = { stringResource(R.string.setup_timer_value, it) },
+                description = { pluralStringResource(R.plurals.cd_setup_timer, it, it) },
                 onSelect = { onEvent(SetupEvent.SetTimer(it)) },
             )
         }
-        OptionRow(stringResource(R.string.setup_bonus), stringResource(R.string.setup_bonus_hint)) {
+        OptionRow(stringResource(R.string.setup_bonus), hint = stringResource(R.string.setup_bonus_hint)) {
             Segmented(
                 values = BoothConfig.BonusChoices,
                 selected = config.bonusShots,
                 label = { stringResource(R.string.setup_bonus_value, it) },
+                description = { pluralStringResource(R.plurals.cd_setup_bonus, it, it) },
                 onSelect = { onEvent(SetupEvent.SetBonus(it)) },
             )
         }
@@ -655,11 +691,16 @@ private fun OptionsPage(config: BoothConfig, onEvent: (SetupEvent) -> Unit) {
         // Mirroring only means something for selfies, and the LED flash only exists on the back: the row
         // under Camera follows the lens (§13).
         if (config.lens == Lens.Front) {
-            OptionRow(stringResource(R.string.setup_mirror), stringResource(R.string.setup_mirror_hint)) {
-                Switch(checked = config.mirror, onCheckedChange = { onEvent(SetupEvent.SetMirror(it)) })
+            // The whole row is the switch, so TalkBack reads its name with it.
+            OptionRow(
+                stringResource(R.string.setup_mirror),
+                hint = stringResource(R.string.setup_mirror_hint),
+                modifier = Modifier.toggleable(value = config.mirror, role = Role.Switch) { onEvent(SetupEvent.SetMirror(it)) },
+            ) {
+                Switch(checked = config.mirror, onCheckedChange = null)
             }
         } else {
-            OptionRow(stringResource(R.string.setup_back_flash), stringResource(R.string.setup_back_flash_hint)) {
+            OptionRow(stringResource(R.string.setup_back_flash), hint = stringResource(R.string.setup_back_flash_hint)) {
                 Segmented(
                     values = BackFlash.entries,
                     selected = config.backFlash,
@@ -672,25 +713,43 @@ private fun OptionsPage(config: BoothConfig, onEvent: (SetupEvent) -> Unit) {
 }
 
 @Composable
-private fun OptionRow(title: String, hint: String? = null, control: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(50.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            if (hint != null) {
-                Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            }
+private fun OptionRow(title: String, modifier: Modifier = Modifier, hint: String? = null, control: @Composable () -> Unit) {
+    val words = @Composable {
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+        if (hint != null) {
+            Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        control()
+    }
+    if (isLargeFont()) {
+        // Big fonts (§6.7): the words get the full width and the control sits under them.
+        Column(modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            words()
+            control()
+        }
+    } else {
+        Row(modifier.fillMaxWidth().heightIn(min = 50.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(end = 8.dp)) { words() }
+            control()
+        }
     }
 }
 
 @Composable
-private fun <T> Segmented(values: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
-    SingleChoiceSegmentedButtonRow(Modifier.width(196.dp)) {
+private fun <T> Segmented(
+    values: List<T>,
+    selected: T,
+    label: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
+    description: (@Composable (T) -> String)? = null,
+) {
+    SingleChoiceSegmentedButtonRow(if (isLargeFont()) Modifier.fillMaxWidth() else Modifier.width(196.dp)) {
         values.forEachIndexed { index, value ->
+            // "5 seconds" reads better than "5 s" (§6.7).
+            val spoken = description?.invoke(value)
             SegmentedButton(
                 selected = value == selected,
                 onClick = { if (value != selected) onSelect(value) },
+                modifier = if (spoken != null) Modifier.semantics { contentDescription = spoken } else Modifier,
                 shape = SegmentedButtonDefaults.itemShape(index, values.size),
                 colors = SegmentedButtonDefaults.colors(
                     activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -699,7 +758,7 @@ private fun <T> Segmented(values: List<T>, selected: T, label: @Composable (T) -
                     inactiveBorderColor = MaterialTheme.colorScheme.outline,
                 ),
                 icon = {},
-                label = { Text(label(value), maxLines = 1, softWrap = false) },
+                label = { if (isLargeFont()) Text(label(value), maxLines = 1) else FitText(label(value)) },
             )
         }
     }

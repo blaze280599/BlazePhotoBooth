@@ -21,6 +21,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
+import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.ui.feature.album.AlbumRoute
 import com.blaze.photobooth.ui.feature.capture.CaptureRoute
 import com.blaze.photobooth.ui.feature.detail.DetailRoute
@@ -47,6 +48,8 @@ val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?
 @Composable
 fun BoothNavHost(modifier: Modifier = Modifier) {
     val backStack = rememberNavBackStack(Home)
+    // §6.7: with reduce motion, screens cross-fade without sliding.
+    val reduceMotion = LocalReduceMotion.current
 
     SharedTransitionLayout(modifier) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
@@ -58,9 +61,9 @@ fun BoothNavHost(modifier: Modifier = Modifier) {
                     rememberViewModelStoreNavEntryDecorator(),
                 ),
                 sharedTransitionScope = this,
-                transitionSpec = { forwardTransition() },
-                popTransitionSpec = { popTransition() },
-                predictivePopTransitionSpec = { popTransition() },
+                transitionSpec = { if (reduceMotion) calmTransition() else forwardTransition() },
+                popTransitionSpec = { if (reduceMotion) calmTransition() else popTransition() },
+                predictivePopTransitionSpec = { if (reduceMotion) calmTransition() else popTransition() },
                 entryProvider = entryProvider {
                     entry<Home> {
                         HomeRoute(
@@ -187,6 +190,9 @@ private fun slideDistance(fullWidth: Int) = (fullWidth * BoothMotion.NavSlideFra
 private fun AnimatedContentTransitionScope<Scene<NavKey>>.forwardTransition(): ContentTransform =
     (slideInHorizontally(BoothMotion.gentle()) { slideDistance(it) } + fadeIn(BoothMotion.gentle()))
         .togetherWith(slideOutHorizontally(BoothMotion.gentle()) { -slideDistance(it) } + fadeOut(BoothMotion.gentle()))
+
+/** Reduce motion (§6.7): a plain cross-fade, no slide. */
+private fun calmTransition(): ContentTransform = fadeIn(BoothMotion.gentle()) togetherWith fadeOut(BoothMotion.gentle())
 
 private fun AnimatedContentTransitionScope<Scene<NavKey>>.popTransition(): ContentTransform =
     (slideInHorizontally(BoothMotion.gentle()) { -slideDistance(it) } + fadeIn(BoothMotion.gentle()))

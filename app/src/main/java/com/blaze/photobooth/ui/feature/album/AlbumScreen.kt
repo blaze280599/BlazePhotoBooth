@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -87,6 +88,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.blaze.photobooth.R
+import com.blaze.photobooth.core.Calm
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.core.rememberBoothHaptics
 import com.blaze.photobooth.ui.components.BlobShape
@@ -120,6 +122,7 @@ fun AlbumScreen(
     gridState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
 ) {
     val extra = BoothTheme.extraColors
+    val reduceMotion = LocalReduceMotion.current
     // A new filter starts at the top (not on the first composition, so coming back from Detail keeps her place).
     val firstFilter = remember { mutableStateOf(true) }
     LaunchedEffect(state.filter) {
@@ -151,8 +154,8 @@ fun AlbumScreen(
 
         AnimatedVisibility(
             visible = state.selecting,
-            enter = slideInVertically(BoothMotion.gentle()) { it } + fadeIn(),
-            exit = slideOutVertically(BoothMotion.gentle()) { it } + fadeOut(),
+            enter = Calm.enter(reduceMotion, slideInVertically(BoothMotion.gentle()) { it } + fadeIn()),
+            exit = Calm.exit(reduceMotion, slideOutVertically(BoothMotion.gentle()) { it } + fadeOut()),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             SelectionBar(
@@ -389,7 +392,7 @@ private fun AlbumCard(
     val colors = MaterialTheme.colorScheme
     // Deleted cards shrink and fade away before the grid closes up (§4.7); selected ones sink a little.
     val gone by animateFloatAsState(if (leaving) 1f else 0f, if (reduceMotion) tween(0) else tween(AlbumViewModel.LeaveMillis.toInt()), label = "leave")
-    val press by animateFloatAsState(if (selected) 0.94f else 1f, BoothMotion.snappy(), label = "selected")
+    val press by animateFloatAsState(if (selected) 0.94f else 1f, Calm.spec(reduceMotion, BoothMotion.snappy()), label = "selected")
     val shape = RoundedCornerShape(18.dp)
     val description = stringResource(
         if (item.favorite) R.string.cd_album_strip_favorite else R.string.cd_album_strip,
@@ -441,8 +444,8 @@ private fun AlbumCard(
                 )
                 androidx.compose.animation.AnimatedVisibility(
                     visible = selecting,
-                    enter = scaleIn(BoothMotion.bouncy()) + fadeIn(),
-                    exit = scaleOut() + fadeOut(),
+                    enter = Calm.enter(reduceMotion, scaleIn(BoothMotion.bouncy()) + fadeIn()),
+                    exit = Calm.exit(reduceMotion, scaleOut() + fadeOut()),
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp),
@@ -471,7 +474,6 @@ private fun AlbumCard(
                 FavoriteButton(
                     favorite = item.favorite,
                     onToggle = { onEvent(AlbumEvent.ToggleFavorite(item.id)) },
-                    size = 44.dp,
                 )
             }
         }
@@ -505,7 +507,7 @@ private fun SelectionBar(count: Int, actions: ExportActions, onSave: () -> Unit,
             Spacer(Modifier.weight(1f))
             SquishyButton(
                 onClick = { if (!actions.busy) onDelete() },
-                modifier = Modifier.height(56.dp),
+                modifier = Modifier.heightIn(min = 56.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp),
             ) {
                 Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
@@ -563,7 +565,7 @@ private fun EmptyAlbum(onStart: () -> Unit, modifier: Modifier = Modifier) {
             onClick = onStart,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp),
+                .heightIn(min = 64.dp),
         ) {
             Text(stringResource(R.string.home_start), style = MaterialTheme.typography.headlineSmall)
         }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -53,12 +54,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.blaze.photobooth.R
+import com.blaze.photobooth.core.Calm
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.ui.components.BlobLogo
 import com.blaze.photobooth.ui.components.FloatingParticles
@@ -66,6 +69,7 @@ import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
 import com.blaze.photobooth.ui.components.StripImage
 import com.blaze.photobooth.ui.components.StripImageKeys
+import com.blaze.photobooth.ui.components.isLargeFont
 import com.blaze.photobooth.ui.components.boothParticleColors
 import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
@@ -85,6 +89,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val extra = BoothTheme.extraColors
+    val reduceMotion = LocalReduceMotion.current
     Box(
         modifier
             .fillMaxSize()
@@ -120,8 +125,8 @@ fun HomeScreen(
             Spacer(Modifier.weight(1.3f))
             AnimatedVisibility(
                 visible = state.draft != null,
-                enter = slideInVertically(BoothMotion.bouncy()) { it / 2 } + fadeIn(BoothMotion.gentle()),
-                exit = slideOutVertically(BoothMotion.gentle()) { it / 2 } + fadeOut(BoothMotion.gentle()),
+                enter = Calm.enter(reduceMotion, slideInVertically(BoothMotion.bouncy()) { it / 2 } + fadeIn(BoothMotion.gentle())),
+                exit = Calm.exit(reduceMotion, slideOutVertically(BoothMotion.gentle()) { it / 2 } + fadeOut(BoothMotion.gentle())),
             ) {
                 DraftCard(
                     shotCount = state.draft?.shotCount ?: 0,
@@ -134,7 +139,7 @@ fun HomeScreen(
                 onClick = { onEvent(HomeEvent.Start) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(68.dp),
+                    .heightIn(min = 68.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp),
             ) {
                 Text(stringResource(R.string.home_start), style = MaterialTheme.typography.headlineSmall)
@@ -217,7 +222,7 @@ private fun AlbumButton(
             onClick = onOpenAlbum,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .heightIn(min = 56.dp),
             style = SquishyButtonStyle.Tonal,
         ) {
             Icon(Icons.Rounded.PhotoLibrary, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
@@ -231,7 +236,7 @@ private fun AlbumButton(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    Text(if (albumCount > 99) "99+" else albumCount.toString())
+                    Text(if (albumCount > 99) stringResource(R.string.home_album_many) else albumCount.toString())
                 }
             }
         }
@@ -247,11 +252,12 @@ private val PeekVisibleHeight = 44.dp
 @Composable
 private fun StripPeek(strip: RecentStrip, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val description = stringResource(R.string.cd_recent_strip)
+    val open = stringResource(R.string.cd_open)
     Surface(
         modifier = modifier
             .size(width = 58.dp, height = PeekVisibleHeight + 48.dp)
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = open, role = Role.Button, onClick = onClick)
             .clearAndSetSemantics { contentDescription = description },
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -299,17 +305,31 @@ private fun DraftCard(shotCount: Int, onContinue: () -> Unit, onDiscard: () -> U
         contentColor = MaterialTheme.colorScheme.inverseOnSurface,
         shadowElevation = 6.dp,
     ) {
-        Row(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        val message = @Composable { modifier: Modifier ->
             Text(
                 text = pluralStringResource(R.plurals.home_draft_message, shotCount, shotCount),
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
+                modifier = modifier,
             )
+        }
+        val buttons = @Composable {
             TextButton(onClick = onDiscard) {
                 Text(stringResource(R.string.home_draft_discard), color = MaterialTheme.colorScheme.inverseOnSurface)
             }
             TextButton(onClick = onContinue) {
                 Text(stringResource(R.string.home_draft_continue), color = MaterialTheme.colorScheme.inversePrimary)
+            }
+        }
+        if (isLargeFont()) {
+            // Big fonts (§6.7): the message gets the whole width, the buttons sit under it.
+            Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 6.dp)) {
+                message(Modifier.padding(end = 12.dp))
+                Row(Modifier.align(Alignment.End)) { buttons() }
+            }
+        } else {
+            Row(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                message(Modifier.weight(1f))
+                buttons()
             }
         }
     }

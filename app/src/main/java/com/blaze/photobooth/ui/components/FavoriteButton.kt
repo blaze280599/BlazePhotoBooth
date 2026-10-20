@@ -58,7 +58,7 @@ fun FavoriteButton(
     // 0 → 1 while the burst flies; 1 = nothing to draw.
     val burst = remember { Animatable(1f) }
     val heart = remember { heartPath() }
-    val colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.secondary, BoothTheme.extraColors.mint)
+    val colors = listOf(BoothTheme.extraColors.candy, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.secondary, BoothTheme.extraColors.mint)
     val description = stringResource(R.string.cd_favorite)
 
     Box(

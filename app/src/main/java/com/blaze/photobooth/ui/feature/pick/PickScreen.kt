@@ -23,12 +23,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -45,9 +49,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -70,6 +78,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -95,14 +106,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -111,6 +125,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import com.blaze.photobooth.R
+import com.blaze.photobooth.core.Calm
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.core.rememberBoothHaptics
 import com.blaze.photobooth.data.frames.FrameOption
@@ -120,7 +135,11 @@ import com.blaze.photobooth.model.PhotoFilter
 import com.blaze.photobooth.model.SlotSelection
 import com.blaze.photobooth.model.StripSpec
 import com.blaze.photobooth.render.Filters
+import com.blaze.photobooth.ui.components.Arc
 import com.blaze.photobooth.ui.components.BoothTabRow
+import com.blaze.photobooth.ui.components.FitText
+import com.blaze.photobooth.ui.components.fixedScale
+import com.blaze.photobooth.ui.components.growWithFont
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
 import com.blaze.photobooth.ui.components.StripPreview
@@ -178,16 +197,22 @@ fun PickScreen(
             progress.animateTo(1f, spring(dampingRatio = 0.85f, stiffness = 260f, visibilityThreshold = 0.001f))
         }
     }
-    val flyingSlot = flight?.slot?.takeIf { progress.value < 1f }
+    // Recomposes only when the flight starts or ends; its frames are drawn from [progress] in a graphicsLayer.
+    val flying by remember { derivedStateOf { progress.value < 1f } }
+    val flyingSlot = flight?.slot?.takeIf { flying }
 
     val pagerState = rememberPagerState(initialPage = initialTab.ordinal) { PickTab.entries.size }
+    // Typing a caption (§4.4): the page shrinks to the caption and date and Print steps aside until the keyboard
+    // closes, so the strip above stays big enough to watch the caption land.
+    val typing = WindowInsets.isImeVisible
 
     Box(
         modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(extra.gradientTop, extra.gradientBottom))),
     ) {
-        Column(Modifier.fillMaxSize()) {
+        // The caption's keyboard pushes the sheet up and the strip shrinks (edge-to-edge: adjustResize alone doesn't).
+        Column(Modifier.fillMaxSize().imePadding()) {
             PickTopBar(state, onClose = { onEvent(PickEvent.Close) }, modifier = Modifier.statusBarsPadding())
             Box(
                 Modifier
@@ -225,7 +250,7 @@ fun PickScreen(
                         state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(PageHeight),
+                            .height(if (typing) TypingPageHeight.growWithFont() else PageHeight.growWithFont()),
                         verticalAlignment = Alignment.Top,
                     ) { page ->
                         when (PickTab.entries[page]) {
@@ -237,13 +262,15 @@ fun PickScreen(
                             PickTab.Text -> TextPage(state, onEvent)
                         }
                     }
-                    PrintButton(
-                        ready = state.canPrint,
-                        editing = state.editing,
-                        printing = state.printing,
-                        rejectCount = rejectCount,
-                        onClick = { onEvent(PickEvent.Print) },
-                    )
+                    if (!typing) {
+                        PrintButton(
+                            ready = state.canPrint,
+                            editing = state.editing,
+                            printing = state.printing,
+                            rejectCount = rejectCount,
+                            onClick = { onEvent(PickEvent.Print) },
+                        )
+                    }
                 }
             }
         }
@@ -252,7 +279,7 @@ fun PickScreen(
             val shot = state.shots.firstOrNull { it.index == flight.shot }
             val from = trayBounds[flight.shot]
             val to = slotBounds[flight.slot]
-            if (shot != null && from != null && to != null) FlyingShot(shot.image, state.filter, from, to, progress.value)
+            if (shot != null && from != null && to != null) FlyingShot(shot.image, state.filter, from, to) { progress.value }
         }
 
         SnackbarHost(
@@ -272,6 +299,7 @@ fun PickScreen(
 }
 
 private val PageHeight = 252.dp
+private val TypingPageHeight = 176.dp
 
 @Composable
 private fun PickTopBar(state: PickUiState, onClose: () -> Unit, modifier: Modifier = Modifier) {
@@ -309,8 +337,10 @@ private fun PickTopBar(state: PickUiState, onClose: () -> Unit, modifier: Modifi
             contentColor = if (state.selection.complete) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .widthIn(min = 48.dp)
+                // "2 of 4 slots filled" is announced each time a shot goes in or comes out (§6.7).
                 .clearAndSetSemantics {
                     contentDescription = counter
+                    liveRegion = LiveRegionMode.Polite
                 },
         ) {
             Text(
@@ -356,6 +386,7 @@ private fun PickStrip(
                 with(density) {
                     SlotOverlay(
                         number = slot + 1,
+                        cuts = spec.slots.size,
                         filled = filled,
                         rejectCount = rejectCount,
                         onTap = { onTapSlot(slot) },
@@ -371,10 +402,10 @@ private fun PickStrip(
 }
 
 @Composable
-private fun SlotOverlay(number: Int, filled: Boolean, rejectCount: Int, onTap: () -> Unit, modifier: Modifier) {
+private fun SlotOverlay(number: Int, cuts: Int, filled: Boolean, rejectCount: Int, onTap: () -> Unit, modifier: Modifier) {
     val reduceMotion = LocalReduceMotion.current
     val colors = MaterialTheme.colorScheme
-    // Print with empty slots: the empty ones blush pink for a moment (§13).
+    // Print with empty slots: the empty ones blush pink for a moment (§13). Read only while drawing.
     val blush = remember { Animatable(0f) }
     LaunchedEffect(rejectCount) {
         if (rejectCount > 0 && !filled) {
@@ -382,32 +413,35 @@ private fun SlotOverlay(number: Int, filled: Boolean, rejectCount: Int, onTap: (
             blush.animateTo(0f, spring(dampingRatio = 1f, stiffness = 60f))
         }
     }
-    val emptyLabel = stringResource(R.string.cd_pick_slot_empty, number)
-    val filledLabel = stringResource(R.string.cd_pick_slot_filled, number)
+    val emptyLabel = stringResource(R.string.cd_pick_slot_empty, number, cuts)
+    val filledLabel = stringResource(R.string.cd_pick_slot_filled, number, cuts)
+    val takeOut = stringResource(R.string.cd_pick_take_out)
     Box(
         modifier
             .then(
                 if (filled) {
                     Modifier
-                        .clickable(onClick = onTap, role = Role.Button)
-                        .semantics { contentDescription = filledLabel }
+                        .clickable(onClickLabel = takeOut, role = Role.Button, onClick = onTap)
+                        .clearAndSetSemantics { contentDescription = filledLabel }
                 } else {
                     Modifier.clearAndSetSemantics { contentDescription = emptyLabel }
                 },
             ),
     ) {
         if (!filled) {
-            val pulse = if (reduceMotion) {
-                1f
+            // The "+" pulses gently (§4.4); with reduce motion it holds still. Read only in the layer: no recomposition.
+            val pulse: State<Float> = if (reduceMotion) {
+                remember { mutableFloatStateOf(1f) }
             } else {
-                rememberInfiniteTransition(label = "pulse").animateFloat(0.85f, 1.12f, BoothMotion.wobble(), label = "plus").value
+                rememberInfiniteTransition(label = "pulse").animateFloat(0.85f, 1.12f, BoothMotion.wobble(), label = "plus")
             }
             Box(
                 Modifier
                     .fillMaxSize()
                     .padding(3.dp)
-                    .background(colors.primary.copy(alpha = 0.28f * blush.value), RoundedCornerShape(6.dp))
                     .drawBehind {
+                        val b = blush.value
+                        if (b > 0f) drawRoundRect(colors.primary, cornerRadius = CornerRadius(6.dp.toPx()), alpha = 0.28f * b)
                         val stroke = 2.dp.toPx()
                         drawRoundRect(
                             color = colors.primary,
@@ -422,8 +456,8 @@ private fun SlotOverlay(number: Int, filled: Boolean, rejectCount: Int, onTap: (
                 Box(
                     Modifier
                         .graphicsLayer {
-                            scaleX = pulse
-                            scaleY = pulse
+                            scaleX = pulse.value
+                            scaleY = pulse.value
                         }
                         .size(30.dp)
                         .background(colors.primary, CircleShape),
@@ -447,17 +481,20 @@ private fun SlotOverlay(number: Int, filled: Boolean, rejectCount: Int, onTap: (
 @Composable
 private fun NumberBadge(number: Int, filled: Boolean, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
+    // Decorative: the slot or shot it sits on says its number to TalkBack.
     Box(
         modifier
             .size(22.dp)
             .shadow(2.dp, CircleShape)
             .background(if (filled) colors.primary else BoothTheme.extraColors.raised, CircleShape)
-            .border(1.5.dp, Color.White, CircleShape),
+            .border(1.5.dp, Color.White, CircleShape)
+            .clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
         Text(
             number.toString(),
-            style = MaterialTheme.typography.labelMedium,
+            // The circle is a fixed size, so its digit is too (§6.7); TalkBack reads the number from the slot or shot.
+            style = MaterialTheme.typography.labelMedium.let { it.copy(fontSize = it.fontSize.fixedScale(), lineHeight = it.lineHeight.fixedScale()) },
             color = if (filled) colors.onPrimary else colors.primary,
         )
     }
@@ -516,27 +553,29 @@ private fun TrayShot(
     val colors = MaterialTheme.colorScheme
     val placed = slot != null
     val shape = RoundedCornerShape(12.dp)
-    val label = if (placed) {
-        stringResource(R.string.cd_pick_shot_placed, shot.index + 1, slot + 1)
-    } else {
-        stringResource(R.string.cd_pick_shot, shot.index + 1)
-    }
+    // TalkBack: "Shot 3, bonus, in slot 2. Double-tap to take it out; double-tap and hold to peek" (§6.7).
+    val label = stringResource(if (shot.bonus) R.string.cd_pick_shot_bonus else R.string.cd_shot, shot.index + 1)
+    val stateLabel = if (placed) stringResource(R.string.cd_pick_shot_in_slot, slot + 1) else stringResource(R.string.cd_pick_shot_unused)
+    val tapLabel = stringResource(if (placed) R.string.cd_pick_take_out else R.string.cd_pick_place)
     val peekLabel = stringResource(R.string.cd_pick_peek)
     Box(
         modifier
             .fillMaxWidth()
             .aspectRatio(shot.aspect.coerceIn(0.7f, 1.6f))
-            .semantics {
-                contentDescription = label
-                role = Role.Button
-                onClick(label = peekLabel) { onLongPress(); true }
-            }
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                role = Role.Button,
+                onClickLabel = tapLabel,
+                onLongClickLabel = peekLabel,
                 onClick = onTap,
                 onLongClick = onLongPress,
-            ),
+            )
+            .clearAndSetSemantics {
+                contentDescription = label
+                stateDescription = stateLabel
+                selected = placed
+            },
     ) {
         Image(
             bitmap = shot.image,
@@ -550,7 +589,7 @@ private fun TrayShot(
                 .border(if (placed) 3.dp else 1.dp, if (placed) colors.primary else colors.outline, shape),
         )
         if (shot.bonus) {
-            Text(
+            FitText(
                 stringResource(R.string.pick_bonus),
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White,
@@ -563,7 +602,7 @@ private fun TrayShot(
         }
         AnimatedVisibility(
             visible = placed,
-            enter = scaleIn(BoothMotion.bouncy()) + fadeIn(),
+            enter = Calm.enter(LocalReduceMotion.current, scaleIn(BoothMotion.bouncy()) + fadeIn()),
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -574,19 +613,14 @@ private fun TrayShot(
     }
 }
 
-/** §7 A8: the shot's thumbnail glides (with a little lift and tilt) from the tray into its slot. */
+/**
+ * §7 A8: the shot's thumbnail glides (with a little lift and tilt) from the tray into its slot. Laid out once at the
+ * slot's size; [progress] is read only in the layer, so the flight never recomposes (§7 performance).
+ */
 @Composable
-private fun FlyingShot(image: ImageBitmap, filter: PhotoFilter, from: Rect, to: Rect, t: Float) {
+private fun FlyingShot(image: ImageBitmap, filter: PhotoFilter, from: Rect, to: Rect, progress: () -> Float) {
     val density = LocalDensity.current
     val lift = with(density) { 60.dp.toPx() }
-    val u = 1f - t
-    val control = Offset(lerp(from.center.x, to.center.x, 0.5f), minOf(from.center.y, to.center.y) - lift)
-    val center = Offset(
-        u * u * from.center.x + 2 * u * t * control.x + t * t * to.center.x,
-        u * u * from.center.y + 2 * u * t * control.y + t * t * to.center.y,
-    )
-    val w = lerp(from.width, to.width, t)
-    val h = lerp(from.height, to.height, t)
     val colorFilter = remember(filter) { Filters.compose(filter) }
     with(density) {
         Image(
@@ -595,9 +629,17 @@ private fun FlyingShot(image: ImageBitmap, filter: PhotoFilter, from: Rect, to: 
             contentScale = ContentScale.Crop,
             colorFilter = colorFilter,
             modifier = Modifier
-                .offset { IntOffset((center.x - w / 2).roundToInt(), (center.y - h / 2).roundToInt()) }
-                .size(w.toDp(), h.toDp())
-                .graphicsLayer { rotationZ = 8f * sin(PI.toFloat() * t) }
+                .offset { IntOffset(to.left.roundToInt(), to.top.roundToInt()) }
+                .size(to.width.toDp(), to.height.toDp())
+                .graphicsLayer {
+                    val t = progress()
+                    val center = Arc.point(from.center, to.center, lift, t)
+                    translationX = center.x - to.center.x
+                    translationY = center.y - to.center.y
+                    scaleX = lerp(from.width / to.width, 1f, t)
+                    scaleY = lerp(from.height / to.height, 1f, t)
+                    rotationZ = 8f * sin(PI.toFloat() * t)
+                }
                 .clip(RoundedCornerShape(8.dp))
                 .border(2.dp, Color.White, RoundedCornerShape(8.dp)),
         )
@@ -658,9 +700,11 @@ private fun FiltersPage(state: PickUiState, onEvent: (PickEvent) -> Unit) {
 
 @Composable
 private fun TextPage(state: PickUiState, onEvent: (PickEvent) -> Unit) {
+    val keyboard = LocalSoftwareKeyboardController.current
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -696,10 +740,18 @@ private fun TextPage(state: PickUiState, onEvent: (PickEvent) -> Unit) {
             singleLine = true,
             supportingText = { Text(stringResource(R.string.pick_caption_count, state.caption.length, PickViewModel.MaxCaption)) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { keyboard?.hide() }),
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth(),
         )
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // The whole row is the switch, so TalkBack reads its name with it.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .toggleable(value = state.showDate, role = Role.Switch) { onEvent(PickEvent.SetShowDate(it)) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.pick_date), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                 Text(
@@ -708,7 +760,7 @@ private fun TextPage(state: PickUiState, onEvent: (PickEvent) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(checked = state.showDate, onCheckedChange = { onEvent(PickEvent.SetShowDate(it)) })
+            Switch(checked = state.showDate, onCheckedChange = null)
         }
     }
 }
@@ -745,7 +797,7 @@ private fun PrintButton(ready: Boolean, editing: Boolean, printing: Boolean, rej
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 20.dp, end = 20.dp, top = 4.dp)
-            .height(60.dp)
+            .heightIn(min = 60.dp)
             .offset { IntOffset(with(density) { shake.value.dp.roundToPx() }, 0) },
         contentPadding = PaddingValues(horizontal = 24.dp),
     ) {
@@ -759,6 +811,7 @@ private fun PrintButton(ready: Boolean, editing: Boolean, printing: Boolean, rej
                 },
             ),
             style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -822,7 +875,7 @@ private fun PeekOverlay(
                     SquishyButton(
                         onClick = { onEvent(PickEvent.Retake(shot.index)) },
                         style = SquishyButtonStyle.Tonal,
-                        modifier = Modifier.weight(1f).height(56.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     ) {
                         Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                         Text(stringResource(R.string.pick_retake), style = MaterialTheme.typography.titleMedium)
@@ -830,7 +883,7 @@ private fun PeekOverlay(
                 }
                 SquishyButton(
                     onClick = { onEvent(PickEvent.DismissPeek) },
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                 ) {
                     Text(stringResource(R.string.pick_peek_done), style = MaterialTheme.typography.titleMedium)
                 }

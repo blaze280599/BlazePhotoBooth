@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.ViewAgenda
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -61,8 +63,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -192,7 +196,9 @@ private fun DetailTopBar(state: DetailUiState, onEvent: (DetailEvent) -> Unit, m
                 state.date?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(locale)).orEmpty(),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
+                textAlign = TextAlign.Center,
+                // Two lines, so the whole date shows with big fonts (§6.7).
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { heading() },
             )
@@ -324,12 +330,14 @@ private fun PhotosPage(state: DetailUiState, pager: PagerState) {
     }
 }
 
+/** Decorative: each page already says "Cut 2 of 3". */
 @Composable
 private fun PageDots(count: Int, current: Int) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = 12.dp)
+            .clearAndSetSemantics {},
         horizontalArrangement = Arrangement.Center,
     ) {
         repeat(count) { i ->
@@ -401,7 +409,7 @@ private fun ActionBar(
                 SquishyButton(
                     onClick = { onEvent(DetailEvent.Delete) },
                     style = SquishyButtonStyle.Tonal,
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                 ) {
                     Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
@@ -409,7 +417,7 @@ private fun ActionBar(
                 }
                 SquishyButton(
                     onClick = { onEvent(DetailEvent.Edit) },
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                 ) {
                     Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
@@ -445,7 +453,7 @@ private fun ShareMenu(
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(20.dp)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.detail_share_strip)) },
-                leadingIcon = { Icon(Icons.Rounded.Download, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Rounded.ViewAgenda, contentDescription = null) },
                 onClick = {
                     open = false
                     onEvent(DetailEvent.Share(ShareWhat.Strip))

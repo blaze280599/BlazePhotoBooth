@@ -55,6 +55,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
@@ -92,10 +94,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import com.blaze.photobooth.R
 import com.blaze.photobooth.camera.CameraStatus
+import com.blaze.photobooth.core.Calm
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.model.BackFlash
 import com.blaze.photobooth.model.PhotoFilter
 import com.blaze.photobooth.render.Filters
+import com.blaze.photobooth.ui.components.Arc
 import com.blaze.photobooth.ui.components.CountdownRing
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.navigation.SharedKeys
@@ -137,7 +141,9 @@ fun CaptureScreen(
             flight.animateTo(1f, tween(FlightMillis, easing = FastOutSlowInEasing))
         }
     }
-    val flyingIndex = state.flight?.index?.takeIf { flight.value < 1f }
+    // Recomposes only when the flight starts or ends; each frame of it is drawn from [flight] in a graphicsLayer.
+    val flying by remember { derivedStateOf { flight.value < 1f } }
+    val flyingIndex = state.flight?.index?.takeIf { flying }
 
     Box(
         modifier
@@ -187,7 +193,7 @@ fun CaptureScreen(
             val thumb = state.tray.getOrNull(flyingIndex)?.thumbnail
             val target = slotBounds[flyingIndex]
             if (thumb != null && target != null && viewfinderBounds != Rect.Zero) {
-                FlyingThumb(thumb, state.filter, viewfinderBounds, target, flight.value)
+                FlyingThumb(thumb, state.filter, viewfinderBounds, target) { flight.value }
             }
         }
 
@@ -284,7 +290,7 @@ private fun CaptureTopBar(state: CaptureUiState, onEvent: (CaptureEvent) -> Unit
 @Composable
 private fun ViewfinderCard(state: CaptureUiState, modifier: Modifier, viewfinder: @Composable (Modifier) -> Unit) {
     val reduceMotion = LocalReduceMotion.current
-    val aspect by animateFloatAsState(state.aspect, BoothMotion.gentle(), label = "aspect")
+    val aspect by animateFloatAsState(state.aspect, Calm.spec(reduceMotion, BoothMotion.gentle()), label = "aspect")
     val wiggle = remember { Animatable(0f) }
     val lastSecond = (state.phase as? SequencePhase.Countdown)?.secondsLeft == 1
     LaunchedEffect(lastSecond) {
@@ -519,21 +525,14 @@ private fun ShutterButton(state: CaptureUiState, enabled: Boolean, onClick: () -
     }
 }
 
-/** §7 A6: the newest shot along a quadratic Bézier from the viewfinder up and over into its slot. */
+/**
+ * §7 A6: the newest shot along a quadratic Bézier from the viewfinder up and over into its slot. It's laid out once
+ * at the slot's size; [progress] (0 → 1) is read only in the layer, so the flight never recomposes (§7 performance).
+ */
 @Composable
-private fun FlyingThumb(thumb: ImageBitmap, filter: PhotoFilter, from: Rect, to: Rect, t: Float) {
+private fun FlyingThumb(thumb: ImageBitmap, filter: PhotoFilter, from: Rect, to: Rect, progress: () -> Float) {
     val density = LocalDensity.current
     val lift = with(density) { 120.dp.toPx() }
-    val start = from.center
-    val end = to.center
-    val control = Offset(lerp(start.x, end.x, 0.5f), minOf(start.y, end.y) - lift)
-    val u = 1f - t
-    val position = Offset(
-        u * u * start.x + 2 * u * t * control.x + t * t * end.x,
-        u * u * start.y + 2 * u * t * control.y + t * t * end.y,
-    )
-    val startSize = androidx.compose.ui.geometry.Size(from.width * 0.6f, from.width * 0.6f * to.height / to.width)
-    val size = lerp(startSize, to.size, t)
     val colorFilter = remember(filter) { Filters.compose(filter) }
     with(density) {
         Image(
@@ -542,19 +541,29 @@ private fun FlyingThumb(thumb: ImageBitmap, filter: PhotoFilter, from: Rect, to:
             contentScale = ContentScale.Crop,
             colorFilter = colorFilter,
             modifier = Modifier
-                .offset { IntOffset((position.x - size.width / 2).roundToInt(), (position.y - size.height / 2).roundToInt()) }
-                .size(size.width.toDp(), size.height.toDp())
-                .graphicsLayer { rotationZ = -10f * sin(PI.toFloat() * t) }
+                .offset { IntOffset(to.left.roundToInt(), to.top.roundToInt()) }
+                .size(to.width.toDp(), to.height.toDp())
+                .graphicsLayer {
+                    val t = progress()
+                    val center = Arc.point(from.center, to.center, lift, t)
+                    // Starts at 60% of the viewfinder's width, ends at the slot's own size.
+                    val scale = lerp(from.width * 0.6f / to.width, 1f, t)
+                    translationX = center.x - to.center.x
+                    translationY = center.y - to.center.y
+                    scaleX = scale
+                    scaleY = scale
+                    rotationZ = -10f * sin(PI.toFloat() * t)
+                }
                 .clip(RoundedCornerShape(10.dp))
                 .border(2.dp, Color.White, RoundedCornerShape(10.dp)),
         )
     }
 }
 
-private fun lerp(a: androidx.compose.ui.geometry.Size, b: androidx.compose.ui.geometry.Size, t: Float) =
-    androidx.compose.ui.geometry.Size(lerp(a.width, b.width, t), lerp(a.height, b.height, t))
-
-/** §4.3: a white flash (≈ 220 ms ease-out) on every shutter. */
+/**
+ * §4.3: a white flash (≈ 220 ms ease-out) on every shutter. The alpha is read only while drawing, so the flash never
+ * recomposes the screen. With reduce motion it's softer (it's feedback, not decoration, so it stays).
+ */
 @Composable
 private fun FlashOverlay(flashCount: Int, reduceMotion: Boolean) {
     val alpha = remember { Animatable(0f) }
@@ -563,13 +572,14 @@ private fun FlashOverlay(flashCount: Int, reduceMotion: Boolean) {
         alpha.snapTo(if (reduceMotion) 0.6f else 0.95f)
         alpha.animateTo(0f, tween(FlashMillis, easing = EaseOut))
     }
-    if (alpha.value > 0f) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.White.copy(alpha = alpha.value)),
-        )
-    }
+    Spacer(
+        Modifier
+            .fillMaxSize()
+            .drawBehind {
+                val a = alpha.value
+                if (a > 0f) drawRect(Color.White, alpha = a)
+            },
+    )
 }
 
 /** The friendly pre-prompt (§12), then "Try again" or "Open settings". */
@@ -580,19 +590,19 @@ private fun PermissionCard(permission: CameraPermission, onEvent: (CaptureEvent)
         CameraPermission.Denied -> Triple(R.string.capture_permission_denied_body, R.string.capture_permission_retry, CaptureEvent.RequestPermission)
         else -> Triple(R.string.capture_permission_body, R.string.capture_permission_allow, CaptureEvent.RequestPermission)
     }
-    MessageCard(emoji = "📸", title = R.string.capture_permission_title, body = body, button = button) { onEvent(event) }
+    MessageCard(emoji = R.string.capture_permission_emoji, title = R.string.capture_permission_title, body = body, button = button) { onEvent(event) }
 }
 
 @Composable
 private fun CameraErrorCard(reason: CameraStatus.Reason, onEvent: (CaptureEvent) -> Unit) {
     val body = if (reason == CameraStatus.Reason.InUse) R.string.capture_error_in_use else R.string.capture_error_other
-    MessageCard(emoji = "😴", title = R.string.capture_error_title, body = body, button = R.string.capture_error_retry) {
+    MessageCard(emoji = R.string.capture_error_emoji, title = R.string.capture_error_title, body = body, button = R.string.capture_error_retry) {
         onEvent(CaptureEvent.RetryCamera)
     }
 }
 
 @Composable
-private fun MessageCard(emoji: String, title: Int, body: Int, button: Int, onClick: () -> Unit) {
+private fun MessageCard(emoji: Int, title: Int, body: Int, button: Int, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.widthIn(max = 360.dp),
         shape = MaterialTheme.shapes.large,
@@ -600,7 +610,7 @@ private fun MessageCard(emoji: String, title: Int, body: Int, button: Int, onCli
         shadowElevation = 4.dp,
     ) {
         Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(emoji, style = MaterialTheme.typography.displayMedium, modifier = Modifier.clearAndSetSemantics {})
+            Text(stringResource(emoji), style = MaterialTheme.typography.displayMedium, modifier = Modifier.clearAndSetSemantics {})
             Spacer(Modifier.height(12.dp))
             Text(stringResource(title), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))

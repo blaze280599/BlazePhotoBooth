@@ -137,6 +137,11 @@ fun CaptureRoute(
         onEvent = { event ->
             when (event) {
                 CaptureEvent.Close -> close()
+                // Switching lens or flash is a choice like Setup's chips (§6.5).
+                CaptureEvent.Flip, CaptureEvent.ToggleBackFlash -> {
+                    haptics.segmentTick()
+                    viewModel.onEvent(event)
+                }
                 CaptureEvent.RequestPermission -> launcher.launch(Manifest.permission.CAMERA)
                 CaptureEvent.OpenSettings -> context.startActivity(
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))

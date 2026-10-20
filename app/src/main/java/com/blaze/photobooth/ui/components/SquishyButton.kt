@@ -23,8 +23,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.blaze.photobooth.R
+import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.PillShape
@@ -47,14 +50,16 @@ fun SquishyButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = remember { Animatable(1f) }
-    LaunchedEffect(interactionSource) {
+    val reduceMotion = LocalReduceMotion.current
+    LaunchedEffect(interactionSource, reduceMotion) {
         interactionSource.interactions.collectLatest { interaction ->
             when (interaction) {
                 is PressInteraction.Press -> scale.animateTo(BoothMotion.PressedScale, BoothMotion.snappy())
                 is PressInteraction.Release, is PressInteraction.Cancel -> {
                     // A quick tap can release before the squish shows; finish it first so every tap feels squishy.
                     if (scale.value > SquishVisibleScale) scale.animateTo(BoothMotion.PressedScale, BoothMotion.snappy())
-                    scale.animateTo(1f, BoothMotion.release())
+                    // Reduce motion (§6.7): the press still gives way, but it settles back without the bounce.
+                    scale.animateTo(1f, if (reduceMotion) BoothMotion.snappy() else BoothMotion.release())
                 }
             }
         }
@@ -119,14 +124,14 @@ internal fun SquishyButtonSamples() {
     Surface(color = MaterialTheme.colorScheme.background) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SquishyButton(onClick = {}, contentPadding = PaddingValues(horizontal = 40.dp, vertical = 18.dp)) {
-                Text("Start ✿", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.home_start), style = MaterialTheme.typography.titleLarge)
             }
             SquishyButton(onClick = {}, style = SquishyButtonStyle.Tonal) {
                 Icon(Icons.Rounded.Favorite, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                Text("My Album")
+                Text(stringResource(R.string.home_album))
             }
-            SquishyButton(onClick = {}, style = SquishyButtonStyle.Outlined) { Text("Maybe later") }
-            SquishyButton(onClick = {}, enabled = false) { Text("Disabled") }
+            SquishyButton(onClick = {}, style = SquishyButtonStyle.Outlined) { Text(stringResource(R.string.capture_storage_cancel)) }
+            SquishyButton(onClick = {}, enabled = false) { Text(stringResource(R.string.pick_print_waiting)) }
         }
     }
 }

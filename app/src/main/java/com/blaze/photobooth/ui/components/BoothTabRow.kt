@@ -6,20 +6,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -56,16 +56,19 @@ fun BoothTabRow(
             Box(
                 Modifier
                     .weight(1f)
-                    .height(44.dp)
+                    // 48 dp touch target (§6.7); the label may grow it with big fonts.
+                    .heightIn(min = 48.dp)
                     .clip(CircleShape)
-                    .background(container)
+                    // The colour fade is drawn, not recomposed (§7 performance).
+                    .drawBehind { drawRect(container) }
                     .selectable(selected = selected, role = Role.Tab) {
                         if (!selected) onTick()
                         scope.launch { pagerState.animateScrollToPage(index, animationSpec = BoothMotion.gentle()) }
-                    },
+                    }
+                    .padding(horizontal = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(stringResource(label), style = MaterialTheme.typography.labelLarge, color = content, maxLines = 1)
+                FitText(stringResource(label), style = MaterialTheme.typography.labelLarge, color = content)
             }
         }
     }

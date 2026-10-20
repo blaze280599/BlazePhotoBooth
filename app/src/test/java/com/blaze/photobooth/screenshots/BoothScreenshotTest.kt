@@ -13,7 +13,6 @@ import com.blaze.photobooth.ui.components.BlobShapeSamples
 import com.blaze.photobooth.ui.feature.home.HomeScreen
 import com.blaze.photobooth.ui.feature.home.HomeUiState
 import com.blaze.photobooth.ui.feature.home.SampleFilledHomeState
-import com.blaze.photobooth.ui.feature.placeholder.PlaceholderSample
 import com.blaze.photobooth.ui.feature.setup.SetupScreen
 import com.blaze.photobooth.ui.feature.setup.SetupTab
 import com.blaze.photobooth.ui.feature.settings.SettingsSheetContent
@@ -71,11 +70,6 @@ class BoothScreenshotTest {
     @Test
     fun blobShapes() = snap("blob_shapes") {
         BoothTheme(darkTheme = false, reduceMotion = false) { BlobShapeSamples() }
-    }
-
-    @Test
-    fun placeholderDark() = snap("placeholder_capture_dark") {
-        BoothTheme(darkTheme = true, reduceMotion = false) { PlaceholderSample() }
     }
 
     @Test

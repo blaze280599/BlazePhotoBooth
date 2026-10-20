@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -95,6 +96,8 @@ import com.blaze.photobooth.model.StripSpec
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
 import com.blaze.photobooth.ui.components.StripPreview
+import com.blaze.photobooth.ui.components.fixedScale
+import com.blaze.photobooth.ui.components.isLargeFont
 import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.SheetShape
@@ -186,6 +189,8 @@ private fun FindingContent(artwork: Bitmap?, onEvent: (AddFrameEvent) -> Unit) {
     }
     val primary = MaterialTheme.colorScheme.primary
     val sparkle = Color.White
+    // One path, rewound for every sparkle: the sweep allocates nothing per frame (§7 performance).
+    val sparklePath = remember { Path() }
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         FlowTopBar(stringResource(R.string.add_frame_title), stringResource(R.string.cd_add_frame_close), { onEvent(AddFrameEvent.Close) })
         Box(
@@ -227,7 +232,7 @@ private fun FindingContent(artwork: Bitmap?, onEvent: (AddFrameEvent) -> Unit) {
                     )
                     for ((i, p) in SparkleSpots.withIndex()) {
                         val twinkle = if (sweep == null) 1f else (0.5f + 0.5f * sin((t * 2f + i * 0.37f) * 2f * PI.toFloat()))
-                        drawSparkle(Offset(p.x * size.width, p.y * size.height), (8 + (i % 3) * 3).dp.toPx() * (0.6f + 0.4f * twinkle), primary, sparkle, twinkle)
+                        drawSparkle(sparklePath, Offset(p.x * size.width, p.y * size.height), (8 + (i % 3) * 3).dp.toPx() * (0.6f + 0.4f * twinkle), primary, sparkle, twinkle)
                     }
                 }
             }
@@ -235,7 +240,8 @@ private fun FindingContent(artwork: Bitmap?, onEvent: (AddFrameEvent) -> Unit) {
         Text(
             text = stringResource(R.string.add_frame_finding),
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary,
+            // Low on the gradient, where it's pinkest: the deeper berry keeps it ≥ 4.5:1 (§6.7).
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(horizontal = 24.dp)
@@ -250,10 +256,11 @@ private val SparkleSpots = listOf(
     Offset(0.18f, 0.12f), Offset(0.82f, 0.22f), Offset(0.3f, 0.41f), Offset(0.74f, 0.55f), Offset(0.2f, 0.7f), Offset(0.66f, 0.86f),
 )
 
-/** A four-point sparkle ✦ with a soft halo. */
-private fun DrawScope.drawSparkle(center: Offset, radius: Float, color: Color, halo: Color, alpha: Float) {
+/** A four-point sparkle ✦ with a soft halo, drawn with [path] (rewound here). */
+private fun DrawScope.drawSparkle(path: Path, center: Offset, radius: Float, color: Color, halo: Color, alpha: Float) {
     drawCircle(halo.copy(alpha = 0.55f * alpha), radius * 0.9f, center)
-    val path = Path().apply {
+    path.apply {
+        rewind()
         val r = radius
         val k = r * 0.28f
         moveTo(center.x, center.y - r)
@@ -304,7 +311,7 @@ private fun ConfirmContent(state: AddFrameUiState, onEvent: (AddFrameEvent) -> U
         Text(
             text = stringResource(R.string.add_frame_note),
             style = MaterialTheme.typography.titleMedium.handwritten(),
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
@@ -387,7 +394,8 @@ internal fun NumberBadge(number: Int, size: Dp, modifier: Modifier = Modifier, s
     ) {
         Text(
             text = number.toString(),
-            style = MaterialTheme.typography.labelLarge,
+            // A fixed-size circle: its digit keeps its size with big fonts (§6.7).
+            style = MaterialTheme.typography.labelLarge.let { it.copy(fontSize = it.fontSize.fixedScale(), lineHeight = it.lineHeight.fixedScale()) },
             fontWeight = FontWeight.SemiBold,
             color = if (selected) colors.onPrimary else colors.primary,
         )
@@ -439,27 +447,27 @@ private fun ConfirmPanel(state: AddFrameUiState, onEvent: (AddFrameEvent) -> Uni
             label = "panel",
         ) { naming ->
             if (!naming) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SquishyButton(
-                        onClick = { onEvent(AddFrameEvent.Adjust) },
-                        style = SquishyButtonStyle.Outlined,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                    ) {
-                        Icon(Icons.Rounded.Tune, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.add_frame_adjust), style = MaterialTheme.typography.titleMedium)
-                    }
-                    SquishyButton(
-                        onClick = { onEvent(AddFrameEvent.LooksRight) },
-                        modifier = Modifier
-                            .weight(1.4f)
-                            .height(56.dp),
-                    ) {
-                        Text(stringResource(R.string.add_frame_looks_right), style = MaterialTheme.typography.titleMedium)
-                    }
-                }
+                ButtonPair(
+                    first = { modifier ->
+                        SquishyButton(
+                            onClick = { onEvent(AddFrameEvent.Adjust) },
+                            style = SquishyButtonStyle.Outlined,
+                            modifier = modifier.heightIn(min = 56.dp),
+                        ) {
+                            Icon(Icons.Rounded.Tune, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.add_frame_adjust), style = MaterialTheme.typography.titleMedium)
+                        }
+                    },
+                    second = { modifier ->
+                        SquishyButton(
+                            onClick = { onEvent(AddFrameEvent.LooksRight) },
+                            modifier = modifier.heightIn(min = 56.dp),
+                        ) {
+                            Text(stringResource(R.string.add_frame_looks_right), style = MaterialTheme.typography.titleMedium)
+                        }
+                    },
+                )
             } else {
                 Column {
                     OutlinedTextField(
@@ -477,31 +485,55 @@ private fun ConfirmPanel(state: AddFrameUiState, onEvent: (AddFrameEvent) -> Uni
                         keyboardActions = KeyboardActions(onDone = { save() }),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 12.dp)) {
-                        SquishyButton(
-                            onClick = {
-                                keyboard?.hide()
-                                onEvent(AddFrameEvent.CancelNaming)
-                            },
-                            style = SquishyButtonStyle.Outlined,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                        ) {
-                            Text(stringResource(R.string.manage_cancel), style = MaterialTheme.typography.titleMedium)
-                        }
-                        SquishyButton(
-                            onClick = save,
-                            enabled = state.step == AddFrameStep.Confirm,
-                            modifier = Modifier
-                                .weight(1.4f)
-                                .height(56.dp),
-                        ) {
-                            Text(stringResource(R.string.add_frame_save), style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
+                    ButtonPair(
+                        modifier = Modifier.padding(top = 12.dp),
+                        first = { modifier ->
+                            SquishyButton(
+                                onClick = {
+                                    keyboard?.hide()
+                                    onEvent(AddFrameEvent.CancelNaming)
+                                },
+                                style = SquishyButtonStyle.Outlined,
+                                modifier = modifier.heightIn(min = 56.dp),
+                            ) {
+                                Text(stringResource(R.string.manage_cancel), style = MaterialTheme.typography.titleMedium)
+                            }
+                        },
+                        second = { modifier ->
+                            SquishyButton(
+                                onClick = save,
+                                enabled = state.step == AddFrameStep.Confirm,
+                                modifier = modifier.heightIn(min = 56.dp),
+                            ) {
+                                Text(stringResource(R.string.add_frame_save), style = MaterialTheme.typography.titleMedium)
+                            }
+                        },
+                    )
                 }
             }
+        }
+    }
+}
+
+/**
+ * A quiet button and a main one, side by side (the main one wider); with big fonts (§6.7) they stack, main one on top,
+ * so neither label breaks mid-word.
+ */
+@Composable
+private fun ButtonPair(
+    first: @Composable (Modifier) -> Unit,
+    second: @Composable (Modifier) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (isLargeFont()) {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            second(Modifier.fillMaxWidth())
+            first(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            first(Modifier.weight(1f))
+            second(Modifier.weight(1.4f))
         }
     }
 }
@@ -597,7 +629,7 @@ private fun FailedContent(onEvent: (AddFrameEvent) -> Unit) {
         ) {
             Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerLow) {
                 Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🖼️", style = MaterialTheme.typography.displaySmall, modifier = Modifier.clearAndSetSemantics {})
+                    Text(stringResource(R.string.add_frame_open_failed_emoji), style = MaterialTheme.typography.displaySmall, modifier = Modifier.clearAndSetSemantics {})
                     Text(
                         stringResource(R.string.add_frame_open_failed_title),
                         style = MaterialTheme.typography.titleLarge,

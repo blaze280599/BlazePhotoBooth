@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -66,6 +67,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import com.blaze.photobooth.R
+import com.blaze.photobooth.core.Calm
 import com.blaze.photobooth.core.LocalReduceMotion
 import com.blaze.photobooth.data.export.AutoSaveStatus
 import com.blaze.photobooth.ui.feature.export.ExportAction
@@ -76,6 +78,7 @@ import com.blaze.photobooth.ui.components.Confetti
 import com.blaze.photobooth.ui.components.ConfettiPhysics
 import com.blaze.photobooth.ui.components.SquishyButton
 import com.blaze.photobooth.ui.components.SquishyButtonStyle
+import com.blaze.photobooth.ui.theme.BoothMotion
 import com.blaze.photobooth.ui.theme.BoothTheme
 import com.blaze.photobooth.ui.theme.handwritten
 import kotlinx.coroutines.coroutineScope
@@ -122,7 +125,7 @@ fun ResultScreen(
     }
 
     val confettiColors = listOf(
-        MaterialTheme.colorScheme.primary,
+        extra.candy,
         MaterialTheme.colorScheme.secondary,
         MaterialTheme.colorScheme.tertiary,
         extra.mint,
@@ -165,10 +168,11 @@ fun ResultScreen(
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
+                // The feed and sway are read only in the strip's layer: printing never recomposes the screen (§7).
                 Printer(
                     state = state,
-                    feed = feed.value,
-                    sway = sway.value,
+                    feed = { feed.value },
+                    sway = { sway.value },
                     fade = reduceMotion,
                     modifier = Modifier
                         .fillMaxSize()
@@ -177,8 +181,11 @@ fun ResultScreen(
                 // Above the chip and toolbar, so Album and Again! stay in sight under a Retry.
                 SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
             }
-            Column(Modifier.height(76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                androidx.compose.animation.AnimatedVisibility(visible = printed && state.saved, enter = scaleIn(spring(0.5f, 400f), 0.6f) + fadeIn()) {
+            Column(Modifier.heightIn(min = 76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = printed && state.saved,
+                    enter = Calm.enter(reduceMotion, scaleIn(BoothMotion.bouncy(), 0.6f) + fadeIn()),
+                ) {
                     SavedChip()
                 }
                 val note = state.autoSave
@@ -190,7 +197,7 @@ fun ResultScreen(
         }
         Confetti(
             particles = particles,
-            seconds = confetti.value,
+            seconds = { confetti.value },
             colors = confettiColors,
             modifier = Modifier.fillMaxSize(),
         )
@@ -219,7 +226,7 @@ private const val SwayKick = 40f
  * top edge.
  */
 @Composable
-private fun Printer(state: ResultUiState, feed: Float, sway: Float, fade: Boolean, modifier: Modifier) {
+private fun Printer(state: ResultUiState, feed: () -> Float, sway: () -> Float, fade: Boolean, modifier: Modifier) {
     val description = stringResource(R.string.cd_result_strip)
     BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
         val slotHeight = 30.dp
@@ -243,9 +250,10 @@ private fun Printer(state: ResultUiState, feed: Float, sway: Float, fade: Boolea
                     modifier = Modifier
                         .size(stripWidth, height)
                         .graphicsLayer {
+                            val f = feed()
                             transformOrigin = TransformOrigin(0.5f, 0f)
-                            rotationZ = sway
-                            if (fade) alpha = feed else translationY = -(1f - feed) * size.height
+                            rotationZ = sway()
+                            if (fade) alpha = f else translationY = -(1f - f) * size.height
                         }
                         .shadow(8.dp, RoundedCornerShape(2.dp)),
                 )
@@ -335,14 +343,14 @@ private fun ActionToolbar(state: ResultUiState, onEvent: (ResultEvent) -> Unit) 
                 SquishyButton(
                     onClick = { onEvent(ResultEvent.Album) },
                     style = SquishyButtonStyle.Tonal,
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                 ) {
                     Text(stringResource(R.string.result_album), style = MaterialTheme.typography.titleMedium)
                 }
                 SquishyButton(
                     onClick = { onEvent(ResultEvent.Again) },
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                 ) {
                     Text(stringResource(R.string.result_again), style = MaterialTheme.typography.titleMedium)
