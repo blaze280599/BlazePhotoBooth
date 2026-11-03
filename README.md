@@ -2,6 +2,23 @@
 
 A Korean self-photo-studio experience (think 인생네컷 *Life4Cuts*, Photoism, Haru Film) in your pocket. Pick a frame, pose through a bouncy countdown, choose your best cuts, and watch your strip "print" out. Then save it to your album forever or download it to your phone.
 
+![Blaze Booth: Home, Setup, the pose card, the printed strip and the album](docs/media/hero.png)
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/home.gif" width="240" alt="Home with floating hearts, sparkles and the morphing blob"><br><sub><b>Home</b>: floating sparkles and a morphing blob</sub></td>
+    <td align="center"><img src="docs/media/frames.gif" width="270" alt="All twelve of her bundled frames"><br><sub><b>Her frames ♡</b>: all 12 bundled designs</sub></td>
+  </tr>
+</table>
+
+| Setup | Who's in the booth? | Pose ideas | Pick your cuts |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/media/screen_setup.png" width="200" alt="Setup with the Molang Pineapple frame"> | <img src="docs/media/screen_who.png" width="200" alt="Setup options: Just me, Two of us, Squad"> | <img src="docs/media/screen_pose.png" width="200" alt="Countdown with a Cat paws pose card"> | <img src="docs/media/screen_pick.png" width="200" alt="Pick screen placing shots into slots"> |
+| **Printed!** | **My Album** | **Strip detail** | **Manage frames** |
+| <img src="docs/media/screen_result.png" width="200" alt="The strip printing out with confetti"> | <img src="docs/media/screen_album.png" width="200" alt="Album grid with month headers"> | <img src="docs/media/screen_detail.png" width="200" alt="Detail with save and share actions"> | <img src="docs/media/screen_frames.png" width="200" alt="Manage frames list"> |
+
+<sub>Captured on a Pixel 9 in dark mode. Every strip shown uses generated sample photos (the numbered pastel cards), and status bars are cropped. The bundled frames are third-party artwork for personal use only (§5.5.6), which is why this repository is private.</sub>
+
 > **Built by an AI agent.** Claude (Claude Code) writes this app autonomously. This README is the **single source of truth** for what to build, how it looks and feels, how it's put together, and in what order. When a decision changes, update this file first (see the [Decision log](#18-decision-log)) and then change the code.
 
 **Target device:** Google **Pixel 9** (`tokay`, verified over adb), running **Android 17 (API 37.1)**, with a 6.3" 1080×2424 OLED at 60–120 Hz, 420 dpi density, 12 GB RAM, a 10.5 MP front and 50 MP rear camera. Portrait only.
