@@ -64,6 +64,7 @@ class FrameRepositoryTest {
 
     private val bundledIds = listOf(
         "lilac-pals", "usagi-gold", "ikmyeong-night", "blossom-picnic", "rribbitt-sky", "molang-pineapple", "molang-pool",
+        "best-day", "union-jack", "hbd-autumn", "snowy-christmas", "yalary-spring",
     ).map(FrameId::asset)
 
     @Test
@@ -85,7 +86,7 @@ class FrameRepositoryTest {
     fun manageFramesListsBundledThenImportedButNotDeleted() = runTest {
         val rows = repo.managed.first()
         assertEquals(bundledIds + listOf(shown.id, hidden.id), rows.map { it.frame.id })
-        assertEquals(listOf(false, true, false, false, false, false, false, false, true), rows.map { it.hidden })
+        assertEquals(bundledIds.map { it == FrameId.asset("usagi-gold") } + listOf(false, true), rows.map { it.hidden })
         assertEquals(List(bundledIds.size) { true } + listOf(false, false), rows.map { it.bundled })
     }
 

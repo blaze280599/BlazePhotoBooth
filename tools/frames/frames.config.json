@@ -176,5 +176,75 @@
     "erase": [
       {"rect": [105, 105, 370, 250], "tolerance": 150, "grow": 5}
     ]
+  },
+  {
+    "id": "best-day",
+    "name": "Best Day",
+    "source": "photo-frames/faa34073ca450d1abbb36199a5ccbdfe.jpg",
+    "crop": [390, 219, 589, 822],
+    "window_color": [255, 255, 255],
+    "tolerance": [14, 40]
+  },
+  {
+    "id": "union-jack",
+    "name": "Union Jack",
+    "source": "photo-frames/prepped/union-jack.png",
+    "crop": [0, 0, 382, 1104],
+    "window_color": [255, 0, 255],
+    "tolerance": [40, 120]
+  },
+  {
+    "id": "hbd-autumn",
+    "name": "HBD Autumn",
+    "source": "photo-frames/45456065116d53a42d1b814c73a1fa3b.jpg",
+    "rotate": -1.93,
+    "crop": [170, 200, 347, 720],
+    "window_color": [255, 255, 255],
+    "tolerance": [16, 48],
+    "window_points": [[22, 91], [145, 214], [96, 118]],
+    "erase": [
+      {"rect": [425, 105, 812, 172], "mode": "all"}
+    ],
+    "labels": [
+      {
+        "pills": [[362, 650, 602, 730], [388, 718, 762, 800], [428, 790, 592, 852]],
+        "lines": ["HAPPY", "JEONGHAN", "DAY"],
+        "fill": [250, 214, 152], "outline": [226, 150, 80], "ink": [255, 255, 255]
+      },
+      {
+        "pills": [[592, 1415, 812, 1497], [650, 1485, 838, 1562], [765, 1548, 910, 1612]],
+        "lines": ["HAPPY", "THE8", "DAY"],
+        "fill": [250, 214, 152], "outline": [226, 150, 80], "ink": [255, 255, 255]
+      },
+      {
+        "pills": [[380, 2184, 622, 2264], [318, 2246, 568, 2318], [296, 2305, 454, 2370]],
+        "lines": ["HAPPY", "WOOZI", "DAY"],
+        "fill": [250, 214, 152], "outline": [226, 150, 80], "ink": [255, 255, 255]
+      }
+    ]
+  },
+  {
+    "id": "snowy-christmas",
+    "name": "Snowy Christmas",
+    "source": "photo-frames/prepped/snowy-christmas.png",
+    "crop": [0, 0, 225, 676],
+    "window_color": [255, 0, 255],
+    "tolerance": [40, 120],
+    "erase": [
+      {"rect": [55, 895, 205, 940], "tolerance": 25, "grow": 3}
+    ]
+  },
+  {
+    "id": "yalary-spring",
+    "name": "Yalary Spring",
+    "source": "photo-frames/09abfff7ebb9a5b3ac6d2a77dd7ac7d8.jpg",
+    "rotate": -2.45,
+    "crop": [96, 125, 469, 1168],
+    "window_color": [255, 255, 255],
+    "tolerance": [8, 30],
+    "erase": [
+      {"rect": [240, 118, 960, 188], "tolerance": 40, "grow": 4},
+      {"rect": [395, 3232, 805, 3292], "tolerance": 40, "grow": 4}
+    ]
   }
 ]

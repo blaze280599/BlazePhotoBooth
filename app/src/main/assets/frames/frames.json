@@ -237,5 +237,180 @@
       }
     ],
     "textArea": null
+  },
+  {
+    "id": "best-day",
+    "name": "Best Day",
+    "file": "best-day/frame.png",
+    "thumb": "best-day/thumb.png",
+    "width": 1200,
+    "height": 3636,
+    "slots": [
+      {
+        "x": 109,
+        "y": 199,
+        "w": 802,
+        "h": 525
+      },
+      {
+        "x": 169,
+        "y": 844,
+        "w": 850,
+        "h": 621
+      },
+      {
+        "x": 169,
+        "y": 1580,
+        "w": 844,
+        "h": 633
+      },
+      {
+        "x": 145,
+        "y": 2466,
+        "w": 940,
+        "h": 603
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "union-jack",
+    "name": "Union Jack",
+    "file": "union-jack/frame.png",
+    "thumb": "union-jack/thumb.png",
+    "width": 1200,
+    "height": 3468,
+    "slots": [
+      {
+        "x": 85,
+        "y": 88,
+        "w": 1030,
+        "h": 691
+      },
+      {
+        "x": 85,
+        "y": 814,
+        "w": 1030,
+        "h": 690
+      },
+      {
+        "x": 85,
+        "y": 1540,
+        "w": 1030,
+        "h": 693
+      },
+      {
+        "x": 85,
+        "y": 2265,
+        "w": 1030,
+        "h": 694
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "hbd-autumn",
+    "name": "HBD Autumn",
+    "file": "hbd-autumn/frame.png",
+    "thumb": "hbd-autumn/thumb.png",
+    "width": 1200,
+    "height": 3525,
+    "slots": [
+      {
+        "x": 123,
+        "y": 204,
+        "w": 947,
+        "h": 582
+      },
+      {
+        "x": 116,
+        "y": 943,
+        "w": 948,
+        "h": 588
+      },
+      {
+        "x": 116,
+        "y": 1662,
+        "w": 948,
+        "h": 581
+      },
+      {
+        "x": 109,
+        "y": 2414,
+        "w": 948,
+        "h": 582
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "snowy-christmas",
+    "name": "Snowy Christmas",
+    "file": "snowy-christmas/frame.png",
+    "thumb": "snowy-christmas/thumb.png",
+    "width": 1200,
+    "height": 3605,
+    "slots": [
+      {
+        "x": 175,
+        "y": 271,
+        "w": 839,
+        "h": 578
+      },
+      {
+        "x": 175,
+        "y": 1061,
+        "w": 839,
+        "h": 561
+      },
+      {
+        "x": 170,
+        "y": 1754,
+        "w": 844,
+        "h": 620
+      },
+      {
+        "x": 165,
+        "y": 2570,
+        "w": 849,
+        "h": 556
+      }
+    ],
+    "textArea": null
+  },
+  {
+    "id": "yalary-spring",
+    "name": "Yalary Spring",
+    "file": "yalary-spring/frame.png",
+    "thumb": "yalary-spring/thumb.png",
+    "width": 1200,
+    "height": 3355,
+    "slots": [
+      {
+        "x": 148,
+        "y": 242,
+        "w": 965,
+        "h": 707
+      },
+      {
+        "x": 145,
+        "y": 988,
+        "w": 916,
+        "h": 736
+      },
+      {
+        "x": 145,
+        "y": 1741,
+        "w": 916,
+        "h": 733
+      },
+      {
+        "x": 145,
+        "y": 2491,
+        "w": 865,
+        "h": 729
+      }
+    ],
+    "textArea": null
   }
 ]

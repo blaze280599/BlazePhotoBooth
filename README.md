@@ -5,8 +5,11 @@ A Korean self-photo-studio experience (think 인생네컷 *Life4Cuts*, Photoism,
 > **Built by an AI agent.** Claude (Claude Code) writes this app autonomously. This README is the **single source of truth** for what to build, how it looks and feels, how it's put together, and in what order. When a decision changes, update this file first (see the [Decision log](#18-decision-log)) and then change the code.
 
 **Target device:** Google **Pixel 9** (`tokay`, verified over adb), running **Android 17 (API 37.1)**, with a 6.3" 1080×2424 OLED at 60–120 Hz, 420 dpi density, 12 GB RAM, a 10.5 MP front and 50 MP rear camera. Portrait only.
-**Status:** v1.1.0 ✅ (M0–M10, 2026-10-20). Pose ideas added on top of the finished v1.0.0; released as a sideloaded APK (`release/BlazeBooth-1.1.0.apk`, §15.5) that installs **over** 1.0.0 and keeps the album. See [What's new in v1.1](#whats-new-in-v11), [What's in v1.0](#whats-in-v10) and [Milestones](#16-milestones).
-**Her frames:** ✅ 5 frames processed, AI-upscaled, text removed, bundled, and **approved by her** (2026-10-20); since v1.1 also 2 Molang frames the user asked for (§5.5.6).
+**Status:** v1.2.0 ✅ (2026-11-03): five new frames on top of v1.1.0 (M0–M10, 2026-10-20, pose ideas). Released as a sideloaded APK (`release/BlazeBooth-1.2.0.apk`, §15.5) that installs **over** 1.1.0 and keeps the album (installed on the Pixel 9 over wireless debugging). See [What's new in v1.2](#whats-new-in-v12), [What's new in v1.1](#whats-new-in-v11), [What's in v1.0](#whats-in-v10) and [Milestones](#16-milestones).
+**Her frames:** ✅ 5 frames processed, AI-upscaled, text removed, bundled, and **approved by her** (2026-10-20); since v1.1 also 2 Molang frames, and since v1.2 five more strips, all at the user's request (§5.5.6).
+
+### What's new in v1.2
+- **Five new frames ♡ (§5.5.6):** *Best Day*, *Union Jack*, *HBD Autumn*, *Snowy Christmas* and *Yalary Spring*, 4-photo strips after the Molang frames in Setup, Pick and Manage frames. Data only, no code change; version **1.2.0 / versionCode 3**, installs over 1.1.0 and keeps the album.
 
 ### What's new in v1.1
 - **Pose ideas (§5.6):** a pose card on the viewfinder suggests what to do for every shot: *"First up"* before the first one, the current pose during the countdown, and *"Next: …"* during the "Nice!" beat. 51 poses (with Korean names like 볼하트 and 꽃받침), no repeats in a session, a cute warm-up first, a love pose on the strip's last cut, and never two of the same mood in a row. Tap the card (🔀) for another pose.
@@ -356,13 +359,15 @@ A reproducible Python script (Pillow, NumPy, SciPy; see `requirements.txt`) turn
 | `window_color` | RGB of the photo windows (white, black, olive…) |
 | `tolerance` | `[t0, t1]` colour distance: < t0 is fully transparent, > t1 fully opaque, with a smoothstep in between |
 | `width` | Optional output width in px (default 1200); the Molang 2×2 frames use 1800 so each window stays sharp |
+| `window_points` | Optional `[[x, y], …]` in native crop pixels: white bits of a window cut off by a character's outline (beside the HBD bunny, say) that should be keyed too. They never become slots |
+| `labels` | Optional crisp captions drawn over ones the upscaler garbled: `{pills: [[x0,y0,x1,y1], …] in output px, lines: [...], fill, outline, ink}`, one rounded pill per line (overlapping pills merge), Fredoka Bold (`res/font/fredoka.ttf`) centred in each |
 | `erase` | Optional list of `{rect: [x0,y0,x1,y1] in output px, tolerance, grow}` or `{rect, mode: "all"}` areas to paint out (text, logos). Text pixels (those that differ from the rect's surroundings) are refilled by a Laplace solve from the surrounding background; `mode: "all"` refills the whole rect (for plain backgrounds) |
 
 Steps:
 1. **Segment at native resolution:** windows are big window-coloured regions that don't touch the edge. Same-coloured shapes that aren't windows (a white cloud, a white bear) are **protected** so they stay opaque.
 2. **Upscale** to 1200 px wide (Lanczos, or a pre-upscaled image via `--upscaled-dir`, e.g. from an AI upscaler).
 3. **Soft-key** the windows at full resolution with colour decontamination, so edges are anti-aliased without coloured fringes. Decorations inside windows (stars, sparkles) stay on top of the photos.
-4. **Erase** any configured text or logo areas.
+4. **Erase** any configured text or logo areas, then draw any `labels`.
 5. **Slots** are each window's solid body (thin leaks along outlines are ignored), grown by 6 px so photos tuck under the artwork.
 6. **Output:** `assets/frames/<id>/frame.png` + `thumb.png`, `assets/frames/frames.json`, and review images in `photo-frames/_previews/` (`*_photos.jpg` with numbered sample photos, `*_alpha.jpg` with transparency shown as a checkerboard).
 
@@ -370,10 +375,13 @@ Steps:
 python -m venv .venv && .venv/Scripts/pip install -r tools/frames/requirements.txt
 .venv/Scripts/python tools/frames/process_frames.py            # all frames
 .venv/Scripts/python tools/frames/process_frames.py --only usagi-gold
+.venv/Scripts/python tools/frames/prep_sources.py              # only to rebuild photo-frames/prepped/ (v1.2)
 ```
 
+**Pre-cleaned sources (v1.2):** `tools/frames/prep_sources.py` writes `photo-frames/prepped/<id>.png` for sources the keyer can't handle as they are, filling the windows with magenta (`window_color` 255,0,255): *Union Jack* came as a printed sheet with photos in the windows (left strip kept, navy border repainted flat, the neighbour strip's flag sliver replaced by a mirror of the left edge, the printed date painted out), and *Snowy Christmas* has gradient windows with sparkles (each window is grown from a seed through smooth gradients, stopping at outlines and snow). The prepped PNGs are committed.
+
 #### 5.5.6 Her frames (bundled, v1)
-Five frames from three images she picked (2026-10-20), plus two Molang frames added in v1.1 (M10) at the user's request. Sources are in `photo-frames/`.
+Five frames from three images she picked (2026-10-20), plus two Molang frames added in v1.1 (M10) and five strips added in v1.2 (2026-11-03), both at the user's request. Sources are in `photo-frames/`.
 
 | id | Name | Source | Windows | Output |
 |---|---|---|---|---|
@@ -384,6 +392,13 @@ Five frames from three images she picked (2026-10-20), plus two Molang frames ad
 | `rribbitt-sky` | Rribbitt Sky | Play in the Box sheet, right (blue) | 4 | 1200×3633 |
 | `molang-pineapple` | Molang Pineapple | `molang_pineapple.jpg`, yellow gingham, keeps its "Hello Summer" title (*v1.1*) | 4 (2×2) | 1800×2695 |
 | `molang-pool` | Molang Pool | `molang_water.jpg`, blue pool with swim rings, "molang" logo erased (*v1.1*) | 4 (2×2) | 1800×2695 |
+| `best-day` | Best Day | `faa34073….jpg`, the empty right strip of the "February Photostrip" sheet: camera and window panels, "BEST DAY" tiles, "Fearless" player (*v1.2*) | 4 | 1200×3636 |
+| `union-jack` | Union Jack | `35995ba5….jpg`, a Life4Cuts print: left strip, navy border with a Union Jack foot; photos, stickers, logo and date removed via `prepped/` (*v1.2*) | 4 | 1200×3468 |
+| `hbd-autumn` | HBD Autumn | `45456065….jpg`, the yellow strip with wavy windows (deskewed 1.93°); studio logo erased, "Happy Jeonghan / The8 / Woozi Day" re-lettered with `labels` (*v1.2*) | 4 | 1200×3525 |
+| `snowy-christmas` | Snowy Christmas | `cbc2c6af….jpg`, the blue gingham Christmas strip; gradient windows keyed via `prepped/`, signature erased, keeps "Snow" and "Merry Christmas" (*v1.2*) | 4 | 1200×3605 |
+| `yalary-spring` | Yalary Spring | `09abfff7….jpg`, the Yalary × Photolab+ springtime strip (deskewed 2.45°); header collab text and "PHOTOLAB+" erased, keeps the speech bubbles (*v1.2*) | 4 | 1200×3355 |
+
+**The v1.2 strips:** all single-column, 4 windows, 1200 px wide. The three tiny crops (Best Day 199 px, HBD 177 px, Snowy Christmas 225 px wide) got two Real-ESRGAN anime ×4 passes; Union Jack and Yalary (≈380 px) one. Brand marks, handles, watermarks and dates are erased; big designed lettering (BEST DAY, Fearless, HBD, Snow, Merry Christmas) is kept because it upscales cleanly. Same personal-use-only rule (Yalary and the SEVENTEEN birthday art are third-party designs).
 
 **The Molang frames (v1.1):** both are 2×2 grids with grey windows (`window_color` 196,196,198) keyed out, each crop upscaled with Real-ESRGAN anime ×4 in **one** pass (`photo-frames/upscaled/molang-*.png`) and rendered at 1800 px wide (`width`). *Molang Pineapple* keeps its "Hello Summer" lettering; *Molang Pool*'s "molang" logo is painted out by an `erase` rect. They were processed by the main session and committed unchanged in M10; the same personal-use-only rule applies (Molang is a licensed character).
 
@@ -1007,7 +1022,7 @@ Plain `testDebugUnitTest` runs them too, without comparing. Since M2, `StripRend
 
 ### 15.5 Release build, signing and installing on her phone (M9)
 
-**What the release build is:** `./gradlew assembleRelease` makes `app/build/outputs/apk/release/app-release.apk` (v1.0.0 ≈ 13 MB; v1.1.0 ≈ 17.7 MB, the two Molang frames' artwork is most of the difference; the debug APK is ≈ 87 MB). R8 shrinks and obfuscates the code (`isMinifyEnabled`) and drops unused resources (`isShrinkResources`). `versionName` **1.1.0**, `versionCode` **2** (v1.0.0 was 1.0.0 / 1). Each finished APK is copied to **`release/BlazeBooth-<version>.apk`** in the repo root (`BlazeBooth-1.0.0.apk`, `BlazeBooth-1.1.0.apk`); `/release/` is in `.gitignore`, so APKs are never committed.
+**What the release build is:** `./gradlew assembleRelease` makes `app/build/outputs/apk/release/app-release.apk` (v1.0.0 ≈ 13 MB; v1.1.0 ≈ 17.7 MB, the two Molang frames' artwork is most of the difference; the debug APK is ≈ 87 MB). R8 shrinks and obfuscates the code (`isMinifyEnabled`) and drops unused resources (`isShrinkResources`). `versionName` **1.2.0**, `versionCode` **3** (v1.1.0 was 1.1.0 / 2, v1.0.0 was 1.0.0 / 1; v1.2.0 ≈ 25 MB with the five new frames). Each finished APK is copied to **`release/BlazeBooth-<version>.apk`** in the repo root (`BlazeBooth-1.0.0.apk`, `BlazeBooth-1.1.0.apk`); `/release/` is in `.gitignore`, so APKs are never committed.
 
 **Keep rules:** none were needed beyond `proguard-rules.pro`'s rule for `@Serializable` classes. The libraries ship their own rules (kotlinx.serialization, Room's generated `_Impl`, CameraX, Coil, DataStore, graphics-shapes), and the release build was checked on the Pixel 9: Nav 3 keys restored after `am kill`, `draft.json` read and written, Room, DataStore, Coil, the camera binding (front and back), Print, Edit's re-render, Save to Photos and Share all worked, and logcat showed no `ClassNotFoundException`, `SerializationException` or `NoSuchMethodError`.
 
@@ -1291,6 +1306,7 @@ Rules Claude follows while building this app:
 | 2026-10-20 | At ≥ 150% font, under the pose card, the idle/paused hints use short versions; the crowd segments' labels may take two lines | Found in the 200% PNGs: the full hint was cut off with "…" and "Squad (3+)" shrank to a much smaller size than its neighbours. |
 | 2026-10-20 | v1.1.0 also ships two Molang frames (after her five, in `frames.json` order), processed by the main session | The user asked for them in v1.1; adding frames is data only (§5.5.3), no code change. Frame tests now expect 7 bundled frames. |
 | 2026-10-20 | "Let's go!"'s crowd icon is Material Rounded `Person` / `People` / `Groups`, not the emoji | §6.4: the app's icons are Material Rounded; the meaning is the same. |
+| 2026-11-03 | v1.2.0 adds five strips (Best Day, Union Jack, HBD Autumn, Snowy Christmas, Yalary Spring) after the Molang frames | The user's request; frames are data only. Two sources needed pre-cleaning (`prep_sources.py`) and HBD's garbled captions were re-lettered (`labels`) rather than erased, since they name who the strip is for. Frame tests expect 12 bundled frames. |
 | 2026-10-20 | v1.1.0 keeps debug-key signing and `versionCode` 2 | Android only updates over the same key and a higher versionCode; 1.1.0 installs over 1.0.0 with her album kept (checked on the Pixel 9). |
 ---
 

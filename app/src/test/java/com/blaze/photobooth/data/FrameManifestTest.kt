@@ -16,18 +16,31 @@ class FrameManifestTest {
     private val frames = FrameRepository.parseManifest(File("src/main/assets/frames/frames.json").readText())
 
     @Test
-    fun herSevenFramesInCarouselOrder() {
-        // Her first five (v1.0), then the two Molang frames (v1.1).
+    fun herTwelveFramesInCarouselOrder() {
+        // Her first five (v1.0), the two Molang frames (v1.1), then five strips added in v1.2.
         assertEquals(
-            listOf("lilac-pals", "usagi-gold", "ikmyeong-night", "blossom-picnic", "rribbitt-sky", "molang-pineapple", "molang-pool")
-                .map(FrameId::asset),
+            listOf(
+                "lilac-pals", "usagi-gold", "ikmyeong-night", "blossom-picnic", "rribbitt-sky", "molang-pineapple", "molang-pool",
+                "best-day", "union-jack", "hbd-autumn", "snowy-christmas", "yalary-spring",
+            ).map(FrameId::asset),
             frames.map { it.id },
         )
     }
 
     @Test
     fun lilacPalsHasThreeWindowsTheOthersFour() {
-        assertEquals(listOf(3, 4, 4, 4, 4, 4, 4), frames.map { it.slots.size })
+        assertEquals(listOf(3) + List(11) { 4 }, frames.map { it.slots.size })
+    }
+
+    @Test
+    fun theV12FramesAreSingleColumnStrips() {
+        for (id in listOf("best-day", "union-jack", "hbd-autumn", "snowy-christmas", "yalary-spring")) {
+            val frame = frames.first { it.id == FrameId.asset(id) }
+            assertEquals(id, 1200, frame.width)
+            assertTrue(id, frame.height > 2.5 * frame.width)
+            // One window per row, top to bottom.
+            frame.slots.zipWithNext { a, b -> assertTrue(id, b.y >= a.bottom) }
+        }
     }
 
     @Test

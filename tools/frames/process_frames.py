@@ -4,7 +4,7 @@ For each entry in frames.config.json:
   1. load the source, optionally deskew it, crop to the strip;
   2. upscale to the target width (Lanczos, or a pre-upscaled image from --upscaled-dir);
   3. chroma-key the photo windows to transparency (soft edges + colour decontamination);
-  4. find the window rects (= photo slots), ordered row by row;
+  4. find the window rects (= photo slots), ordered row by row; paint out `erase` areas and draw `labels`;
   5. write app/src/main/assets/frames/<id>/frame.png + thumb.png and assets/frames/frames.json;
   6. write review previews to photo-frames/_previews/.
 
@@ -82,12 +82,14 @@ def segment_windows(rgb0: np.ndarray, cfg: dict) -> tuple[np.ndarray, list[tuple
     # Windows are the big regions; same-coloured characters (white bears, clouds) are much smaller.
     windows = [(i, sl) for a, i, sl in candidates if a >= cfg.get("min_window_ratio", 0.3) * biggest]
     window_ids = {i for i, _ in windows}
+    # Pieces of a window cut off by a character's outline (native crop pixels): keyed too, but not slots.
+    extra_ids = {lab[y, x] for x, y in cfg.get("window_points", []) if lab[y, x]}
 
     # Same-coloured shapes that aren't windows (a white cloud on a white-window frame) must stay opaque,
     # even where soft keying would otherwise creep into them through faint outlines.
     protected = np.zeros_like(dist, dtype=bool)
     for i, sl in enumerate(ndi.find_objects(lab), 1):
-        if i not in window_ids and (lab[sl] == i).sum() >= 0.001 * h * w:
+        if i not in window_ids | extra_ids and (lab[sl] == i).sum() >= 0.001 * h * w:
             protected[sl] |= lab[sl] == i
     protected = ndi.binary_dilation(protected, iterations=2)
 
@@ -98,6 +100,7 @@ def segment_windows(rgb0: np.ndarray, cfg: dict) -> tuple[np.ndarray, list[tuple
         seeds[sl] |= comp
         x0, y0, x1, y1 = core_rect(comp)
         rects.append((sl[1].start + x0, sl[0].start + y0, sl[1].start + x1, sl[0].start + y1))
+    seeds |= np.isin(lab, list(extra_ids))
 
     lab, _ = ndi.label(dist < t1)
     region = np.isin(lab, np.unique(lab[seeds])) & (lab > 0)
@@ -189,6 +192,39 @@ def harmonic_fill(img: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return out
 
 
+FONT = ROOT / "app" / "src" / "main" / "res" / "font" / "fredoka.ttf"
+
+
+def draw_labels(frame: Image.Image, labels: list[dict]) -> Image.Image:
+    """Letter crisp captions over ones the upscaler garbled: rounded pills (one per line, merged where they
+    overlap) in output pixels, with Fredoka Bold text centred in each. Drawn at 3x, then downsampled."""
+    ss = 3
+    for lb in labels:
+        pills = lb["pills"]
+        x0 = min(p[0] for p in pills) - 8
+        y0 = min(p[1] for p in pills) - 8
+        x1 = max(p[2] for p in pills) + 8
+        y1 = max(p[3] for p in pills) + 8
+        layer = Image.new("RGBA", ((x1 - x0) * ss, (y1 - y0) * ss), (0, 0, 0, 0))
+        d = ImageDraw.Draw(layer)
+        border = lb.get("border", 4) * ss
+        boxes = [[(p[0] - x0) * ss, (p[1] - y0) * ss, (p[2] - x0) * ss, (p[3] - y0) * ss] for p in pills]
+        for b in boxes:
+            d.rounded_rectangle(b, radius=(b[3] - b[1]) // 2, fill=tuple(lb["outline"]))
+        for b in boxes:
+            inner = [b[0] + border, b[1] + border, b[2] - border, b[3] - border]
+            d.rounded_rectangle(inner, radius=(inner[3] - inner[1]) // 2, fill=tuple(lb["fill"]))
+        for b, text in zip(boxes, lb["lines"]):
+            size = round((b[3] - b[1]) * lb.get("text_scale", 0.62))
+            font = ImageFont.truetype(str(FONT), size)
+            font.set_variation_by_name("Bold")
+            d.text(((b[0] + b[2]) / 2, (b[1] + b[3]) / 2), text, font=font, anchor="mm", fill=tuple(lb["ink"]),
+                   stroke_width=round(size * 0.09), stroke_fill=tuple(lb["outline"]))
+        layer = layer.resize((x1 - x0, y1 - y0), Image.LANCZOS)
+        frame.alpha_composite(layer, (x0, y0))
+    return frame
+
+
 def to_slots(rects0, scale: float, size: tuple[int, int], grow: int = 6) -> list[dict]:
     """Scale native window rects to output pixels, grown so photos tuck under the artwork's edges."""
     w, h = size
@@ -266,7 +302,7 @@ def main() -> None:
         rgb = decontaminate(rgb, alpha, cfg["window_color"])
         rgb = erase_text(rgb, cfg.get("erase", []))
         rgba = np.dstack([rgb, alpha * 255]).round().astype(np.uint8)
-        frame = Image.fromarray(rgba, "RGBA")
+        frame = draw_labels(Image.fromarray(rgba, "RGBA"), cfg.get("labels", []))
         slots = to_slots(rects0, big.width / crop.width, big.size)
 
         out_dir = ASSETS / cfg["id"]
