@@ -174,7 +174,7 @@
     "window_color": [196, 196, 198],
     "tolerance": [14, 40],
     "erase": [
-      {"rect": [105, 105, 370, 250], "tolerance": 150, "grow": 5}
+      {"rect": [90, 100, 385, 258], "mode": "patch", "from": [1000, 100], "feather": 14}
     ]
   },
   {

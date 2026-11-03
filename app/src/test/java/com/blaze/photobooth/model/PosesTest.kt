@@ -15,9 +15,9 @@ class PosesTest {
     private val res = RuntimeEnvironment.getApplication().resources
 
     @Test
-    fun fiftyOnePosesInThreeLists() {
-        assertEquals(51, Poses.all.size)
-        assertEquals(25, Poses.all.count { it.who == Who.Solo })
+    fun fiftyFivePosesInThreeLists() {
+        assertEquals(55, Poses.all.size)
+        assertEquals(29, Poses.all.count { it.who == Who.Solo })
         assertEquals(14, Poses.all.count { it.who == Who.Duo })
         assertEquals(12, Poses.all.count { it.who == Who.Squad })
     }
@@ -57,6 +57,11 @@ class PosesTest {
     }
 
     @Test
+    fun justMeHasSevenLovePoses() {
+        assertEquals(7, Poses.poolFor(Crowd.Solo).count { it.mood == Mood.Love })
+    }
+
+    @Test
     fun everyPoolCanFillTheLongestSession() {
         val longest = BoothLayout.Six.cuts + BoothConfig.BonusChoices.max()
         for (crowd in Crowd.entries) {
@@ -66,8 +71,8 @@ class PosesTest {
             assertEquals(Mood.entries.toSet(), pool.map { it.mood }.toSet())
             assertTrue(pool.count { it.mood == Mood.Cute } >= 1 && pool.count { it.mood == Mood.Love } >= 1)
         }
-        assertEquals(25, Poses.poolFor(Crowd.Solo).size)
-        assertEquals(39, Poses.poolFor(Crowd.Duo).size)
-        assertEquals(37, Poses.poolFor(Crowd.Squad).size)
+        assertEquals(29, Poses.poolFor(Crowd.Solo).size)
+        assertEquals(43, Poses.poolFor(Crowd.Duo).size)
+        assertEquals(41, Poses.poolFor(Crowd.Squad).size)
     }
 }

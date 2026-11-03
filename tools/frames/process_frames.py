@@ -148,6 +148,16 @@ def erase_text(rgb: np.ndarray, erase: list[dict]) -> np.ndarray:
     rgb = rgb.copy()
     for e in erase:
         x0, y0, x1, y1 = e["rect"]
+        if e.get("mode") == "patch":  # textured backgrounds: copy a clean piece from `from`, feathered edges
+            fx, fy = e["from"]
+            h, w = y1 - y0, x1 - x0
+            feather = e.get("feather", 16)
+            ramp_y = np.clip(np.minimum(np.arange(h), np.arange(h)[::-1]) / feather, 0, 1)
+            ramp_x = np.clip(np.minimum(np.arange(w), np.arange(w)[::-1]) / feather, 0, 1)
+            a = np.minimum(ramp_y[:, None], ramp_x[None, :])[..., None]
+            src = rgb[fy:fy + h, fx:fx + w]
+            rgb[y0:y1, x0:x1] = a * src + (1 - a) * rgb[y0:y1, x0:x1]
+            continue
         m = 12
         sy, sx = slice(max(0, y0 - m), y1 + m), slice(max(0, x0 - m), x1 + m)
         sub = rgb[sy, sx]

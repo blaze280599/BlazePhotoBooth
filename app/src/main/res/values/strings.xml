@@ -449,6 +449,10 @@
     <string name="pose_hair_flip_name">Hair flip, so fabulous</string>
     <string name="pose_aegyo_name">Maximum aegyo!</string>
     <string name="pose_aegyo_ko" translatable="false">애교</string>
+    <string name="pose_heart_eyes_name">Heart eyes!</string>
+    <string name="pose_self_hug_name">Give yourself a big hug</string>
+    <string name="pose_chest_heart_name">A heart over your chest</string>
+    <string name="pose_face_heart_name">Frame your face with a heart</string>
     <string name="pose_shared_heart_name">One heart together, half each</string>
     <string name="pose_shared_heart_ko" translatable="false">반쪽 하트</string>
     <string name="pose_cheek_to_cheek_name">Cheek to cheek</string>

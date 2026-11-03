@@ -378,7 +378,7 @@ A reproducible Python script (Pillow, NumPy, SciPy; see `requirements.txt`) turn
 | `width` | Optional output width in px (default 1200); the Molang 2×2 frames use 1800 so each window stays sharp |
 | `window_points` | Optional `[[x, y], …]` in native crop pixels: white bits of a window cut off by a character's outline (beside the HBD bunny, say) that should be keyed too. They never become slots |
 | `labels` | Optional crisp captions drawn over ones the upscaler garbled: `{pills: [[x0,y0,x1,y1], …] in output px, lines: [...], fill, outline, ink}`, one rounded pill per line (overlapping pills merge), Fredoka Bold (`res/font/fredoka.ttf`) centred in each |
-| `erase` | Optional list of `{rect: [x0,y0,x1,y1] in output px, tolerance, grow}` or `{rect, mode: "all"}` areas to paint out (text, logos). Text pixels (those that differ from the rect's surroundings) are refilled by a Laplace solve from the surrounding background; `mode: "all"` refills the whole rect (for plain backgrounds) |
+| `erase` | Optional list of `{rect: [x0,y0,x1,y1] in output px, tolerance, grow}` or `{rect, mode: "all"}` or `{rect, mode: "patch", from: [x, y], feather}` areas to paint out (text, logos). `patch` copies the same-sized area starting at `from` over the rect with `feather`-px soft edges, for textured backgrounds where a fill would blur. Text pixels (those that differ from the rect's surroundings) are refilled by a Laplace solve from the surrounding background; `mode: "all"` refills the whole rect (for plain backgrounds) |
 
 Steps:
 1. **Segment at native resolution:** windows are big window-coloured regions that don't touch the edge. Same-coloured shapes that aren't windows (a white cloud, a white bear) are **protected** so they stay opaque.
@@ -417,7 +417,7 @@ Five frames from three images she picked (2026-10-20), plus two Molang frames ad
 
 **The v1.2 strips:** all single-column, 4 windows, 1200 px wide. The three tiny crops (Best Day 199 px, HBD 177 px, Snowy Christmas 225 px wide) got two Real-ESRGAN anime ×4 passes; Union Jack and Yalary (≈380 px) one. Brand marks, handles, watermarks and dates are erased; big designed lettering (BEST DAY, Fearless, HBD, Snow, Merry Christmas) is kept because it upscales cleanly. Same personal-use-only rule (Yalary and the SEVENTEEN birthday art are third-party designs).
 
-**The Molang frames (v1.1):** both are 2×2 grids with grey windows (`window_color` 196,196,198) keyed out, each crop upscaled with Real-ESRGAN anime ×4 in **one** pass (`photo-frames/upscaled/molang-*.png`) and rendered at 1800 px wide (`width`). *Molang Pineapple* keeps its "Hello Summer" lettering; *Molang Pool*'s "molang" logo is painted out by an `erase` rect. They were processed by the main session and committed unchanged in M10; the same personal-use-only rule applies (Molang is a licensed character).
+**The Molang frames (v1.1):** both are 2×2 grids with grey windows (`window_color` 196,196,198) keyed out, each crop upscaled with Real-ESRGAN anime ×4 in **one** pass (`photo-frames/upscaled/molang-*.png`) and rendered at 1800 px wide (`width`). *Molang Pineapple* keeps its "Hello Summer" lettering; *Molang Pool*'s "molang" logo is painted out. Since v1.3 it's a `patch` erase: a clean piece of the same wave stripe from further right is copied over it with feathered edges, replacing v1.1's blurred fill, which left a pale smudge on the stripe. They were processed by the main session and committed unchanged in M10; the same personal-use-only rule applies (Molang is a licensed character).
 
 **AI upscaling:** the sources are tiny (the Play in the Box strips are only about 146 px wide), so each crop (`photo-frames/_previews/<id>_crop.png`) was upscaled with **Real-ESRGAN** (`realesrgan-ncnn-vulkan` v0.2.5.0, model `realesrgan-x4plus-anime`, running on the local GPU). Lilac Pals and Usagi got one ×4 pass; the three Play in the Box strips got two ×4 passes. The results are committed in [`photo-frames/upscaled/`](photo-frames/upscaled/) and fed to the pipeline with `--upscaled-dir photo-frames/upscaled`, so rebuilding doesn't need the upscaler. To redo it: download the release zip from github.com/xinntao/Real-ESRGAN/releases into a folder outside the repo, then run `realesrgan-ncnn-vulkan -i <crop>.png -o <id>.png -n realesrgan-x4plus-anime -s 4`.
 
@@ -449,14 +449,14 @@ Real Korean booths are half about the poses. Blaze Booth suggests one pose per s
 - **Content lives in resources:** each pose is an id plus `pose_<id>_name`, an optional `pose_<id>_ko`, an emoji and tags (`who`, `mood`) in a small Kotlin catalogue (`model/Poses.kt`). The text lives in `strings.xml`, so poses can be added later without touching the logic.
 
 *As built in M10* (`model/Poses.kt`, `model/PosePlanner.kt`, `ui/feature/capture/PoseCard.kt`):
-- **Catalogue:** `Poses.all` lists the 51 poses below in order (`Pose(id, emoji, who, mood, name, korean)`); the strings are `pose_<id>_name` / `pose_<id>_ko` with `-` written as `_` (Korean names are `translatable="false"`). `Poses.poolFor(crowd)` is the solo list, plus the crowd's own list for Two of us (39) and Squad (37).
-- **Planner** (`PosePlanner`, pure, seeded): `plan(crowd, cuts, total, seed)` walks the shots once. Each shot draws from the unused poses that meet the rules, also avoiding the mood the *next* shot is required to have (so the love cut can always follow); Two of us and Squad first pick their own list with probability 0.6 (`OwnShare`) when both lists have a fitting pose. Relaxing goes: "different mood" first, then the cute/love rule, then poses from the rest of the catalogue; a repeat only if everything is used (impossible with 51 poses and at most 10 shots). **Solo Polaroid** (one cut): shot 1 is both the first shot and the last cut, and the cute warm-up wins. The seed is the draft's `createdAt`.
-- **Swap** (`swap(plan, index, …)`): another pose that isn't in the plan, keeping that shot's required mood and a mood different from both neighbours where an unused pose allows. Just me has only 3 love poses, so if the plan already uses all three, swapping the last cut gives a non-love pose rather than a repeat (tested).
+- **Catalogue:** `Poses.all` lists the 55 poses below in order (`Pose(id, emoji, who, mood, name, korean)`); the strings are `pose_<id>_name` / `pose_<id>_ko` with `-` written as `_` (Korean names are `translatable="false"`). `Poses.poolFor(crowd)` is the solo list, plus the crowd's own list for Two of us (43) and Squad (41).
+- **Planner** (`PosePlanner`, pure, seeded): `plan(crowd, cuts, total, seed)` walks the shots once. Each shot draws from the unused poses that meet the rules, also avoiding the mood the *next* shot is required to have (so the love cut can always follow); Two of us and Squad first pick their own list with probability 0.6 (`OwnShare`) when both lists have a fitting pose. Relaxing goes: "different mood" first, then the cute/love rule, then poses from the rest of the catalogue; a repeat only if everything is used (impossible with 55 poses and at most 10 shots). **Solo Polaroid** (one cut): shot 1 is both the first shot and the last cut, and the cute warm-up wins. The seed is the draft's `createdAt`.
+- **Swap** (`swap(plan, index, …)`): another pose that isn't in the plan, keeping that shot's required mood and a mood different from both neighbours where an unused pose allows. Just me has 7 love poses (3 until v1.3), so a swap of the last cut can almost always stay "love"; if every love pose is already in the plan it gives a non-love pose rather than a repeat (tested).
 - **Draft:** `draft.json` gains `posePlan` (one id per shot) and `config.crowd`. A draft from v1.0.0 has neither: it loads as *Just me* and gets `plan(…, seed = createdAt)`, the same plan on every load until a change is written. Unknown ids (a pose removed in a later version) are swapped for fitting ones in place (`repair`). The strip's cut count for the rules is `totalShots − bonusShots` (`BoothDraft.cuts`). Retakes, Pick's choices and config changes leave the plan alone; a swap is written at once (`BoothDraftStore.swapPose`).
 - **Card:** big (*First up*, or *Up next* when a continued session or a retake starts idle or is paused), smaller during the countdown (and the capture), *Next:* during the beat, none when done. One TalkBack stop, a polite live region (*"First up: Cheek hearts"*, then *"Pose: Cheek hearts"* as the countdown starts, *"Next: Finger heart"*) with the action *Swap the pose*; the whole card (≥ 56 dp tall) is the tap target, the 🔀 marks it. No swap while the photo is being taken. It pops in on `Bouncy` (from 0.6×) and cross-fades with a small bouncy scale on each change; reduce motion fades. The words use `FitText` (they grow with the font but shrink back to fit, never below 100%) and the emoji ignores font scale, so at 200% the card still leaves room for the countdown on the landscape classic viewfinder. Under the card the idle and paused hints shrink to fit too, and at ≥ 150% font they switch to short versions (*"Tap the big button ✿"*, *"Paused · tap ▶"*), which fit on one line. Robolectric's font has no glyphs for the newest emoji (🫶, 🫰, …), so some PNGs show a box; the phone draws them all.
 
-#### 5.6.2 Pose catalogue (v1: 51 poses)
-**Solo, also fine for everyone together (25):**
+#### 5.6.2 Pose catalogue (55 poses: 51 in v1.1, 4 solo love poses added in v1.3)
+**Solo, also fine for everyone together (29):**
 | id | Pose | 한국어 | Mood |
 |---|---|---|---|
 | `smile` | 😁 Biggest smile ever | | cute (warm-up) |
@@ -484,6 +484,10 @@ Real Korean booths are half about the poses. Blaze Booth suggests one pose per s
 | `idol-fist` | ✊ Idol pose, fist under your chin | | cool |
 | `hair-flip` | 💁 Hair flip, so fabulous | | cool |
 | `aegyo` | ✨ Maximum aegyo! | 애교 | cute |
+| `heart-eyes` | 😍 Heart eyes! | | love (*v1.3*) |
+| `self-hug` | 🤗 Give yourself a big hug | | love (*v1.3*) |
+| `chest-heart` | 💓 A heart over your chest | | love (*v1.3*) |
+| `face-heart` | 💝 Frame your face with a heart | | love (*v1.3*) |
 
 **Two of us (14):**
 | id | Pose | 한국어 | Mood |
@@ -520,6 +524,83 @@ Real Korean booths are half about the poses. Blaze Booth suggests one pose per s
 | `wave` | 👋 Wave bye-bye! | | cute |
 
 The largest session is 10 shots (Six Grid + 4 bonus), and every pool is big enough to fill it with no repeats while keeping the mood rules. If a rule can't be met, the plan relaxes the "no repeated mood" rule first and never repeats a pose.
+
+### 5.7 Live strips ✨ (M11, v1.3.0)
+Like Photoism's "live photo": every cut also keeps the **second before the shutter** as a short clip, and the strip can play as a moving picture. Each window loops its own little clip under the frame artwork.
+
+#### 5.7.1 Behaviour
+- **Setup → Options → "Live ✨"** (short clips), default **on**, persisted in `BoothConfig.live`. Off works exactly like v1.2.
+- **Capture:** while a countdown runs, the camera keeps a rolling buffer of the most recent ~1 s of frames. At the shutter, that buffer becomes the shot's clip, written to disk alongside the still.
+  - During the last second a small pulsing **"LIVE"** dot is shown, so it's honest that it's recording.
+  - Frames after the shutter aren't used, so the white flash and screen flash never appear in a clip.
+  - Retake one records a new clip for that shot.
+- **Playback:** clips play as a **boomerang** (forward, then backward) at 12 fps, so the loop is seamless. Every window plays in sync.
+- **Where it shows:**
+  - **Result:** after the printing reveal, the strip comes alive.
+  - **Detail:** a **Still | Live ✨** toggle on the Strip tab.
+  - **Pick:** a long-press peek plays the shot's clip.
+  - **Album:** a small "LIVE" badge on live strips (thumbnails stay still for scrolling performance).
+  - Reduce motion means live strips don't auto-play; tapping plays them once.
+- **Save and share** (§11.5): **Save live video** writes an MP4 and **Save GIF** writes an animated GIF, both to Photos under `Pictures/Blaze Booth`, plus share options for both. Names: `BlazeBooth_<date>_<time>_live.mp4` / `_live.gif`.
+- **Edit** (re-pick, re-frame, re-filter) works on live strips too: clips are stored raw, so filters and frames are applied when rendering, exactly like stills.
+
+#### 5.7.2 How it's built
+- **Frame capture:** CameraX `ImageAnalysis` (`STRATEGY_KEEP_ONLY_LATEST`, ~960 px long edge), bound with Preview and ImageCapture.
+  - Throttled to 12 fps into a ring buffer of 12 frames.
+  - Each frame gets the same rotate/mirror/centre-crop to the slot's aspect as the still (§9.4), then a downscale to a long edge of **640 px**, then JPEG 85 at `shot_{i}_live/f00.jpg … f11.jpg`.
+  - All of this runs off the main thread with bounded memory, and the buffer is cleared after each shot.
+  - If the device can't bind all three use cases, live turns itself off for that session, with a gentle note.
+- **Rendering:** `StripRenderer` gains a frame index. Each slot draws frame *k* of its clip (or the still if that shot has no clip), then the frame artwork and decorations go on top, so a single renderer still serves preview, export and live.
+- **MP4:** `MediaCodec` (H.264) with a `Surface` input. Each frame is drawn with `lockHardwareCanvas()` via `StripRenderer`, then muxed with `MediaMuxer`. The size is the largest even size the encoder's `VideoCapabilities` supports, at or below the strip's export size. 24 boomerang frames at 12 fps make a 2 s loop, and the video repeats the loop 3× so it isn't too short to watch.
+- **GIF:** a small in-house **GIF89a encoder** (pure Kotlin: per-frame palette quantisation plus LZW, infinite-loop extension), unit-tested by decoding the output. Strips render at 600 px wide and 4×6 grids at 800 px, aiming for ≤ 8 MB. No heavy new dependency.
+- **Storage:**
+  - Files: `sessions/{id}/shot_{i}_live/` (about 0.7 MB per shot).
+  - Room: **v2** adds `shots.live_frames INTEGER NOT NULL DEFAULT 0`, through a real **migration 1 → 2** with a migration test (never destructive).
+  - `draft.json`: shots gain `liveFrames` (old drafts read as 0).
+  - Settings → Storage used counts the clips.
+- **Tests:**
+  - Ring-buffer timing (virtual time) and the boomerang order.
+  - GIF encode → decode round-trip.
+  - The encoder-size chooser.
+  - Export names.
+  - The migration and old-draft compatibility.
+  - Renderer frame selection, and Roborazzi frames of a live strip.
+  - On the phone: a full live session, the MP4 and GIF in Photos, playing correctly, plus jank on Capture.
+
+### 5.8 Decorate 꾸미기 ✏️ (M12, v1.4.0)
+Real Korean booths end with a decorating screen: stickers, doodles and handwriting on the strip. Blaze Booth gets one.
+
+#### 5.8.1 Behaviour
+- **Where:** a **✏️ Decorate** button on Pick (beside Print, so a strip can be decorated before printing), on Result, and on Detail (to decorate saved strips later). It opens a full-screen editor with the strip in the middle.
+- **Tools** (a bottom tool bar):
+  - **Stickers:** a sheet of original, code-drawn stickers in categories: Hearts, Stars & sparkles, Cute faces, Bows & flowers, Words (*사랑해*, *오늘*, *최고*, *♡ ×100*, *best day*, *cutie*), and speech bubbles.
+  - **Pen:** 3 sizes; a pastel palette plus white and black; a **neon/glow** style (the 형광펜 look) and a plain style; an eraser that erases doodles only.
+  - **Text:** type a word, then pick Fredoka or Gaegu, a colour and an outline.
+  - **Undo / Redo**, and **Clear all** (with a confirmation).
+- **Gestures:** tap to select (a dashed outline with handles), drag to move, pinch to scale, two-finger rotate, double-tap text to edit it. Drag onto the 🗑 at the bottom to delete. Light snapping to the strip's centre lines. `SEGMENT_TICK` on select and snap.
+- **Done:** saves, re-renders the strip, and returns. Back without saving asks *"Keep your decorations?"*.
+- Decorations sit **above** the frame artwork and the photos. They're kept through re-frame and re-filter, and they appear on **live strips** (§5.7) on every frame, in exports, shares, the GIF and the video.
+
+#### 5.8.2 How it's built
+- **Data:** decorations are vectors in strip canvas units (export pixels), so they're resolution-independent. `Decoration` is a sealed type:
+  - `Sticker(id, x, y, scale, rotation)`
+  - `Stroke(points, width, color, style)`, with points smoothed and simplified (RDP) so they stay small
+  - `Text(text, font, color, outline, x, y, scale, rotation)`
+  
+  Each also has a z-order.
+- **Storage:** JSON in Room **v3** (`sessions.decorations_json`, nullable) via **migration 2 → 3** with a migration test, and `draft.json`'s `decorations` for strips decorated before printing.
+- **Rendering:** `StripRenderer` draws decorations as the last layer. Sticker art lives in `render/Stickers` as vector paths, all original.
+- **Editor:** a Compose `Canvas` with cached `Path`s, gesture handling via `detectTransformGestures` + hit testing on rotated bounds, and an undo/redo stack of immutable states. It must hit 120 fps while drawing on the Pixel 9.
+- **Accessibility:** tools labelled; decorations exposed as a list ("Heart sticker, 3 of 7, double-tap to select"); reduce motion respected; works at 200% font.
+- **Tests:**
+  - Transforms and hit testing on rotated items.
+  - Undo/redo.
+  - Stroke simplification.
+  - JSON round-trip.
+  - The 2 → 3 migration.
+  - An export pixel test showing decorations above the artwork, and a live strip with decorations.
+  - Roborazzi PNGs of the editor and each tool sheet.
+  - On the phone: decorate → save → re-frame keeps the decorations → export.
 
 ---
 
@@ -1147,6 +1228,8 @@ Each milestone ends with a **green build** (`assembleDebug testDebugUnitTest lin
 | **M8** ✅ | Polish | Animation pass (§7 complete, §7.1 audit) ✅, dark mode and contrast ✅, reduce-motion ✅, TalkBack labels ✅, font scale 200% ✅, copy review ✅, haptics check ✅, settings sheet polish (the switches work since M6) ✅, draft recovery (since M3) ✅ | Checklist in §6.7 and §7 passes on device ✅ (2026-10-20) |
 | **M9** ✅ | Hardening & release | Edge cases (§13, every row verified) ✅, process-death test (`adb shell am kill`, §15.6) ✅, StrictMode ✅, R8 release build ✅, baseline profile ✅, performance check (§15.6) ✅, big-font Setup title ✅, backup rules ✅, install guide (§15.5) ✅ | `assembleRelease` installs and runs; no crashes in the release smoke test on the Pixel 9 ✅ (2026-10-20) |
 | **M10** ✅ | Pose ideas (v1.1.0) | Pose catalogue (§5.6.2) in resources, "Who's in the booth?" in Setup → Options, a pose plan per session saved in the draft, the pose card (first up, countdown, "Next:", tap to swap), "Pose ideas" switch in Settings, TalkBack announcement, tests (plan rules, no repeats, persistence, swap), version **1.1.0 / versionCode 2**, a new release APK installed **over** v1.0.0 (album kept) | Every session shows varied poses that suit who's in the booth; the same plan survives retake and process death; the build is green; `release/BlazeBooth-1.1.0.apk` exists ✅ (2026-10-20) |
+| **M11** | Live strips ✨ (v1.3.0) | §5.7: Setup → Options "Live ✨", a rolling 1 s frame buffer via `ImageAnalysis`, per-shot clips on disk, boomerang playback on Result/Detail/Pick peek, the "LIVE" badge, MP4 (`MediaCodec`) and GIF (in-house encoder) save/share, Room **v2** migration, draft compatibility, tests; ships with the post-v1.2 loose ends (4 love poses, the Molang Pool patch); version **1.3.0 / versionCode 4**, installed **over** 1.2.0 | A live session plays on Result and Detail and saves as MP4 and GIF that play in Google Photos; old strips and drafts still open; no Capture jank; the build is green; `release/BlazeBooth-1.3.0.apk` exists |
+| **M12** | Decorate 꾸미기 ✏️ (v1.4.0) | §5.8: the editor from Pick/Result/Detail, stickers (original, code-drawn), pen (neon + plain), text, transform gestures, undo/redo, delete, decorations as vectors in Room **v3** + the draft, rendered above the artwork in previews, exports and live strips; version **1.4.0 / versionCode 5** | Decorations survive re-frame, restart and process death, show in every export including live MP4/GIF, the editor draws at 120 fps; the build is green; `release/BlazeBooth-1.4.0.apk` exists |
 
 ---
 
@@ -1325,17 +1408,22 @@ Rules Claude follows while building this app:
 | 2026-10-20 | "Let's go!"'s crowd icon is Material Rounded `Person` / `People` / `Groups`, not the emoji | §6.4: the app's icons are Material Rounded; the meaning is the same. |
 | 2026-11-03 | v1.2.0 adds five strips (Best Day, Union Jack, HBD Autumn, Snowy Christmas, Yalary Spring) after the Molang frames | The user's request; frames are data only. Two sources needed pre-cleaning (`prep_sources.py`) and HBD's garbled captions were re-lettered (`labels`) rather than erased, since they name who the strip is for. Frame tests expect 12 bundled frames. |
 | 2026-10-20 | v1.1.0 keeps debug-key signing and `versionCode` 2 | Android only updates over the same key and a higher versionCode; 1.1.0 installs over 1.0.0 with her album kept (checked on the Pixel 9). |
+| 2026-11-03 | Just me gets 4 more love poses (heart eyes, self hug, chest heart, face heart): 55 poses | With only 3 love poses, swapping the strip's last cut often couldn't stay a heart pose. |
+| 2026-11-03 | The frame pipeline's `erase` gains a `patch` mode; Molang Pool uses it | A Laplace fill blurs textured backgrounds; copying a clean piece of the same wave stripe hides the old logo without a smudge. |
+| 2026-11-03 | M11 live clips come from an `ImageAnalysis` frame ring buffer (12 fps, ~1 s before the shutter), not `VideoCapture` | Frames get exactly the stills' crop, mirror and filter through the same renderer, need no video decoding to compose, and post-shutter flash frames are naturally excluded. |
+| 2026-11-03 | M11 writes GIFs with an in-house GIF89a encoder; MP4 via `MediaCodec` + `MediaMuxer` | No heavy dependency, and both are unit-testable; MP4 is what most apps accept for sharing, GIF is the fun loop. |
+| 2026-11-03 | M12 decorations are vectors (JSON) rendered at draw time, not baked into strip.jpg | Re-frame, re-filter and live strips keep them, and they stay sharp at every export size. |
 ---
 
 ## 19. Out of scope / future ideas
 
 Not in v1, listed so they aren't accidentally half-built:
-- **Live/GIF strips:** a 1-second clip per cut, exported as an animated GIF or MP4 (Photoism-style "live photo").
+- ~~**Live/GIF strips**~~: now **M11** (§5.7).
 - **Beauty filter / skin smoothing** (needs face detection via ML Kit).
 - **Automatic people counting for pose ideas:** ML Kit face detection on a CameraX `ImageAnalysis` stream, smoothed over ~1 s, choosing the §5.6 pool automatically. It's on-device and offline, adds a few MB, and counts faces rather than bodies.
 - **Illustrated pose cards** (small code-drawn characters showing each pose) instead of emoji.
 - **AR stickers or face-tracking props.**
-- **Draggable stickers and drawing** on the finished strip.
+- ~~**Draggable stickers and drawing**~~: now **M12** (§5.8).
 - **QR "download from booth" flow, cloud sync, accounts.**
 - **Custom frame designer** (build a frame from colours and stickers inside the app; importing ready-made artwork *is* in scope, §5.5).
 - **Tablet, foldable and landscape layouts.**

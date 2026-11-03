@@ -22,10 +22,10 @@ data class Pose(
     @param:StringRes val korean: Int?,
 )
 
-/** The pose catalogue (§5.6.2, 51 poses), in the README's order. Adding a pose = a line here + its strings. */
+/** The pose catalogue (§5.6.2, 55 poses), in the README's order. Adding a pose = a line here + its strings. */
 object Poses {
     val all: List<Pose> = listOf(
-        // Solo, also fine for everyone together (25)
+        // Solo, also fine for everyone together (29)
         Pose("smile", "😁", Who.Solo, Mood.Cute, R.string.pose_smile_name, null),
         Pose("cheek-heart", "🫶", Who.Solo, Mood.Cute, R.string.pose_cheek_heart_name, R.string.pose_cheek_heart_ko),
         Pose("finger-heart", "🫰", Who.Solo, Mood.Love, R.string.pose_finger_heart_name, R.string.pose_finger_heart_ko),
@@ -51,6 +51,11 @@ object Poses {
         Pose("idol-fist", "✊", Who.Solo, Mood.Cool, R.string.pose_idol_fist_name, null),
         Pose("hair-flip", "💁", Who.Solo, Mood.Cool, R.string.pose_hair_flip_name, null),
         Pose("aegyo", "✨", Who.Solo, Mood.Cute, R.string.pose_aegyo_name, R.string.pose_aegyo_ko),
+        // Added after v1.2 so Just me has more love poses for the strip's last cut (§5.6.2).
+        Pose("heart-eyes", "😍", Who.Solo, Mood.Love, R.string.pose_heart_eyes_name, null),
+        Pose("self-hug", "🤗", Who.Solo, Mood.Love, R.string.pose_self_hug_name, null),
+        Pose("chest-heart", "💓", Who.Solo, Mood.Love, R.string.pose_chest_heart_name, null),
+        Pose("face-heart", "💝", Who.Solo, Mood.Love, R.string.pose_face_heart_name, null),
         // Two of us (14)
         Pose("shared-heart", "💕", Who.Duo, Mood.Love, R.string.pose_shared_heart_name, R.string.pose_shared_heart_ko),
         Pose("cheek-to-cheek", "🥰", Who.Duo, Mood.Love, R.string.pose_cheek_to_cheek_name, null),
